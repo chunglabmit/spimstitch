@@ -159,6 +159,12 @@ class Pipeline:
                     unevaluated_dependents.append(prerequisite)
                 else:
                     self.resources[prerequisite.key] = prerequisite
+        self.dependents_per_resource = {}
+        for dependent in dependents:
+            requirement_keys = tuple(dependent.prerequisites.keys())
+            if requirement_keys not in self.dependents_per_resource:
+                self.dependents_per_resource[requirement_keys] = []
+            self.dependents_per_resource[requirement_keys].append(dependent)
 
     def run(self, n_workers, silent=False):
         self.progress_bar = tqdm.tqdm(total = len(self.dependents),
@@ -168,7 +174,10 @@ class Pipeline:
                 best = None
                 best_requirements = None
                 best_score = len(self.resources)+1
-                for dependent in self.dependents.values():
+                to_remove = []
+                for resources_key, dependents in \
+                        self.dependents_per_resource.items():
+                    dependent = dependents[0]
                     if dependent.status == ResourceStatus.NOT_READY:
                         requirements = set(dependent.requires())
                         requirements.difference_update(self.in_flight)
@@ -176,6 +185,10 @@ class Pipeline:
                             best = dependent
                             best_requirements = requirements
                             best_score = len(requirements)
+                    else:
+                        to_remove.append(resources_key)
+                for key in to_remove:
+                    del self.dependents_per_resource[key]
                 if best is None:
                     # All dependents' requirements are in-flight
                     # or all dependents are in-flight
