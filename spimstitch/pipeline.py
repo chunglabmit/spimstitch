@@ -3,6 +3,7 @@ import enum
 import logging
 import multiprocessing
 import sys
+import tqdm
 import typing
 import uuid
 
@@ -141,6 +142,8 @@ class Pipeline:
         self.prerequisites = {}
         self.dependents = collections.OrderedDict()
         self.in_flight = set()
+        self.progress_bar = None
+        self.dependent_keys = [_.key for _ in dependents]
         unevaluated_dependents = [_ for _ in dependents]
         while len(unevaluated_dependents) > 0:
             dependent = unevaluated_dependents.pop(0)
@@ -158,7 +161,9 @@ class Pipeline:
                 else:
                     self.resources[prerequisite.key] = prerequisite
 
-    def run(self, n_workers):
+    def run(self, n_workers, silent=False):
+        self.progress_bar = tqdm.tqdm(total = len(self.dependents),
+                                      disable=silent)
         with multiprocessing.Pool(n_workers) as pool:
             while len(self.dependents) > 0:
                 best = None
@@ -185,12 +190,15 @@ class Pipeline:
                     self.process_upqueue(pool)
             while len(self.in_flight) > 0:
                 self.process_upqueue(pool)
+        self.progress_bar.close()
 
     def process_upqueue(self, pool):
         key, status, error = UPQUEUE.get()
         resource = self.resources[key]
         resource.record_completion(status, error)
         self.in_flight.remove(key)
+        if key in self.dependent_keys:
+            self.progress_bar.update()
         del self.resources[key]
         if key in self.prerequisites:
             for dependent in self.prerequisites[key]:

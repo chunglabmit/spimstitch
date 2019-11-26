@@ -30,7 +30,7 @@ def parse_args(args = sys.argv[1:]):
     parser.add_argument(
         "--rotate-90",
         help="Number of times to rotate each image by 90°",
-        default=1,
+        default=3,
         type=int)
     return parser.parse_args(args)
 
