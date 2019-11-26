@@ -57,7 +57,6 @@ class Resource:
         self.status = ResourceStatus.RUNNING
         future = pool.apply_async(Resource.run, (self,))
         return future
-        Resource.run(self)
 
     @staticmethod
     def run(self):

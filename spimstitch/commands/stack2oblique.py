@@ -47,7 +47,7 @@ def parse_args(args=sys.argv[1:]):
 def main(args=sys.argv[1:]):
     opts = parse_args(args)
     logging.basicConfig(level=getattr(logging, opts.log_level))
-    paths = glob.glob(opts.input)
+    paths = sorted(glob.glob(opts.input))
     if len(paths) == 0:
         print("No files were found for expression: %s" % opts.input)
         return
