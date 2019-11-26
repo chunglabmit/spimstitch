@@ -23,7 +23,8 @@ setup(
     packages=["spimstitch", "spimstitch.commands"],
     entry_points={ 'console_scripts': [
         "dcimg2tif=spimstitch.commands.dcimg2tif:main",
-        "stack2oblique=spimstitch.commands.stack2oblique:main"
+        "stack2oblique=spimstitch.commands.stack2oblique:main",
+        "oblique2stitched=spimstitch.commands.stitch:main"
     ]},
     url="https://github.com/chunglabmit/spimstitch",
     license="MIT",
