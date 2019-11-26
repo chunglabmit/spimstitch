@@ -1,5 +1,6 @@
 import argparse
 import multiprocessing
+import numpy as np
 import os
 import tqdm
 import tifffile
@@ -14,7 +15,7 @@ def parse_args(args = sys.argv[1:]):
         required=True)
     parser.add_argument(
         "--output-pattern",
-        help="Output pattern for filename, e.g. \"/path/to/img_%04d.tiff\".",
+        help="Output pattern for filename, e.g. \"/path/to/img_%%04d.tiff\".",
         required=True)
     parser.add_argument(
         "--compression",
@@ -26,12 +27,18 @@ def parse_args(args = sys.argv[1:]):
         help="# of worker processes to run",
         default=1,
         type=int)
+    parser.add_argument(
+        "--rotate-90",
+        help="Number of times to rotate each image by 90°",
+        default=1,
+        type=int)
     return parser.parse_args(args)
 
 
-def write_one(path, output, idx, compression):
+def write_one(path, output, idx, compression, rotate):
     dcimg = DCIMG(path)
     img = dcimg.read_frame(idx)
+    img = np.rot90(img, k=rotate)
     tifffile.imsave(output, img, compress=compression)
 
 
@@ -46,7 +53,8 @@ def main(args=sys.argv[1:]):
         for i in range(dcimg.n_frames):
             output = opts.output_pattern % i
             futures.append(pool.apply_async(
-                write_one, (opts.input, output, i, opts.compression)))
+                write_one, (opts.input, output, i,
+                            opts.compression, opts.rotate_90)))
         for future in tqdm.tqdm(futures):
             future.get()
 
