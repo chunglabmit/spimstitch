@@ -12,25 +12,25 @@ import uuid
 
 class StitchSrcVolume:
 
-    def __init__(self, path:str, xum:float, yum:float):
+    def __init__(self, path:str, x_step_size:float, yum:float):
         """
 
         :param path: Path to a blockfs directory file. The path contains
         position metadata for the volume - the path should be something like
         %d_%d/1_1_1/precomputed.blockfs
-        :param xum: X pixel size of pixels in the original planes. We assume
-        that the X step size is xum / sqrt(2)
+        :param x_step_size: stepper size in the X direction. We assume that the
+        X pixel size is sqrt(2) * x_step_size, so the Z pixel size is the
+        same as the stepper size.
         :param yum: Y pixel size of pixels in the original planes
         """
         self.key = uuid.uuid4()
         self.path = path
         self.directory = Directory.open(path)
-        self.xum_orig = xum
-        self.xum = xum / np.sqrt(2)
-        self.zum = xum / np.sqrt(2)
+        self.xum = x_step_size
+        self.zum = x_step_size
         self.yum = yum
         metadata_dir = os.path.split(os.path.dirname(os.path.dirname(path)))[-1]
-        self.x0, self.y0 = [int(_) for _ in metadata_dir.split("_")]
+        self.x0, self.y0 = [int(_) / 10 for _ in metadata_dir.split("_")]
         self.z0 = 0
 
     def rebase(self, x0:float, y0:float)->type(None):
@@ -133,7 +133,7 @@ class StitchSrcVolume:
         if x0_relative < z0_relative:
             return False # top corner of block is below the leading oblique
        # bottom corner of block is above the trailing oblique
-        return x1_relative - self.trailing_oblique_start > z1_relative
+        return x1_relative - self.trailing_oblique_start < z1_relative
 
     def is_inside(self, x0: int, x1: int, y0: int, y1: int, z0: int, z1: int)\
             -> bool:
@@ -219,9 +219,9 @@ class StitchSrcVolume:
                (z >= 0) & (z < self.directory.z_extent)
         return mask
 
-
     def distance_to_edge(self, x0: int, x1: int, y0: int, y1: int,
-                         z0: int, z1: int) -> np.ndarray:
+                         z0: int, z1: int)\
+            -> typing.Tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Get the distance to the nearest edge for every voxel in the block
         defined by x0:x1, y0:y1, z0:z1. Points outside of the volume are marked
@@ -234,24 +234,30 @@ class StitchSrcVolume:
         :param z0: the starting z, in global coordinates
         :param z1: the ending z in global coordinates
         :return: the distance to the nearest edge for every voxel in the block
+        for the z, y and x directions
         """
+        xs = x1 - x0
+        ys = y1 - y0
+        zs = z1 - z0
         z, y, x = np.mgrid[
-                  self.z_relative(z0):self.z_relative(z1),
-                  self.y_relative(y0):self.y_relative(y1),
-                  self.x_relative(x0):self.x_relative(x1)]
+                  self.z_relative(z0):self.z_relative(z0) + zs,
+                  self.y_relative(y0):self.y_relative(y0) + ys,
+                  self.x_relative(x0):self.x_relative(x0) + xs]
         to_x0 = x - z
-        to_x1 = self.directory.x_block_size - x - z
+        to_x1 = self.directory.x_extent - x - z
+        to_x = np.maximum(0, np.minimum(to_x0, to_x1))
         to_y0 = y
-        to_y1 = self.directory.y_block_size - y
+        to_y1 = self.directory.y_extent - y
+        to_y = np.maximum(0, np.minimum(to_y0, to_y1))
         to_z0 = z
-        to_z1 = self.directory.z_block_size - z
-        distance = np.minimum(
-            np.minimum(to_x0, np.minimum(to_y0, to_z0)),
-            np.minimum(to_x1, np.minimum(to_y1, to_z1)))
+        to_z1 = self.directory.z_extent - z
+        to_z = np.maximum(0, np.minimum(to_z0, to_z1))
         if not self.is_inside(x0, x1, y0, y1, z0, z1):
             mask = self.get_mask(x0, x1, y0, y1, z0, z1)
-            distance[~ mask] = -1
-        return distance
+            to_x[~ mask] = -1
+            to_y[~ mask] = -1
+            to_z[~ mask] = -1
+        return to_z, to_y, to_x
 
     def read_block(self, x0: int, x1: int, y0: int, y1: int, z0: int, z1: int)\
             -> np.ndarray:
@@ -298,6 +304,7 @@ class StitchSrcVolume:
             block[z0f - z0a:z1f - z0a,
                   y0f - y0a:y1f - y0a,
                   x0f - x0a:x1f - x0a] = sub_block
+        return block
 
 # The global list of volumes goes here - a dictionary of UUID to volume
 VOLUMES:typing.Dict[uuid.UUID, StitchSrcVolume] = None
@@ -306,8 +313,8 @@ VOLUMES:typing.Dict[uuid.UUID, StitchSrcVolume] = None
 OUTPUT:Directory = None
 
 
-def do_block(x0: int, y0:int, z0: int):
-    zs, ys, xs = OUTPUT.get_block_size(x0, y0, z0)
+def do_block(x0: int, y0:int, z0: int, x0g:int, y0g:int, z0g:int):
+    zs, ys, xs = OUTPUT.get_block_size(x0-x0g, y0-y0g, z0-z0g)
     x1 = x0 + xs
     y1 = y0 + ys
     z1 = z0 + zs
@@ -324,22 +331,33 @@ def do_block(x0: int, y0:int, z0: int):
                      for volume in volumes]
         masks = [volume.get_mask(x0, x1, y0, y1, z0, z1)
                  for volume in volumes]
-        for volume, distance, mask in zip(volumes, distances, masks):
+        for volume, (dz, dy, dx), mask in zip(volumes, distances, masks):
             vblock = volume.read_block(x0, x1, y0, y1, z0, z1)
             fraction = volume.get_mask(x0, x1, y0, y1, z0, z1).astype(float)
             for idx in [_ for _ in range(len(volumes))
                         if volumes[_].key != volume.key]:
                 other = volumes[idx]
-                other_distance = distances[idx]
                 other_mask = masks[idx]
                 both_mask = mask & other_mask
+                other_dz, other_dy, other_dx = distances[idx]
+                distance = 100000000 * np.ones(dx.shape, np.float32)
+                other_distance = 100000000 * np.ones(other_dx.shape, np.float32)
+                if np.any(dx[both_mask] != other_dx[both_mask]):
+                    distance = dx
+                    other_distance = other_dx
+                if np.any(dy[both_mask] != other_dy[both_mask]):
+                    distance = np.minimum(distance, dy)
+                    other_distance = np.minimum(other_distance, other_dy)
+                if np.any(dz[both_mask] != other_dz[both_mask]):
+                    distance = np.minimum(distance, dz)
+                    other_distance = np.minimum(other_distance, other_dz)
                 angle = np.arctan2(distance[both_mask],
                                    other_distance[both_mask])
                 blending = np.sin(angle) ** 2
                 fraction[both_mask] *= blending
-            block += fraction * vblock
+            block += (fraction * vblock).astype(block.dtype)
 
-    OUTPUT.write_block(block, x0, y0, z0)
+    OUTPUT.write_block(block, x0-x0g, y0-y0g, z0-z0g)
 
 
 def get_output_size(volumes:typing.Sequence[StitchSrcVolume])\
@@ -363,19 +381,26 @@ def get_output_size(volumes:typing.Sequence[StitchSrcVolume])\
 
 
 def run(volumes:typing.Sequence[StitchSrcVolume], output: Directory,
+        x0g:int, y0g:int, z0g:int,
         n_workers:int, silent=False):
-    global VOLUMES, OUTPUT
+    global VOLUMES, OUTPUT, OFFSET
     VOLUMES = volumes
     OUTPUT = output
-    xr = range(0, output.x_extent, output.x_block_size)
-    yr = range(0, output.y_extent, output.y_block_size)
-    zr = range(0, output.z_extent, output.z_block_size)
+    xr = range(x0g, x0g + output.x_extent, output.x_block_size)
+    yr = range(y0g, y0g + output.y_extent, output.y_block_size)
+    zr = range(z0g, z0g + output.z_extent, output.z_block_size)
     futures = []
-    with multiprocessing.Pool(n_workers) as pool:
-        for x0, y0, z0 in itertools.product(xr, yr, zr):
-            futures.append(
-                pool.apply_async(do_block, (x0, y0, z0)))
+    if n_workers > 1:
+        with multiprocessing.Pool(n_workers) as pool:
+            for x0, y0, z0 in itertools.product(xr, yr, zr):
+                futures.append(
+                    pool.apply_async(do_block, (x0, y0, z0, x0g, y0g, z0g)))
 
-        for future in tqdm.tqdm(futures,
-                                desc="Writing blocks"):
-            future.get()
+            for future in tqdm.tqdm(futures,
+                                    desc="Writing blocks"):
+                future.get()
+    else:
+        for x0, y0, z0 in tqdm.tqdm(
+                itertools.product(xr, yr, zr),
+                total=len(xr) * len(yr) * len(zr)):
+            do_block(x0, y0, z0, x0g, y0g, z0g)
