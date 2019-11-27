@@ -24,7 +24,7 @@ setup(
     entry_points={ 'console_scripts': [
         "dcimg2tif=spimstitch.commands.dcimg2tif:main",
         "stack2oblique=spimstitch.commands.stack2oblique:main",
-        "oblique2stitched=spimstitch.commands.stitch:main"
+        "oblique2stitched=spimstitch.commands.stitch_cmd:main"
     ]},
     url="https://github.com/chunglabmit/spimstitch",
     license="MIT",
