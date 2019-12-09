@@ -49,7 +49,19 @@ class BlockD:
 
     def __init__(self,
                  planes:typing.Sequence[PlaneR],
-                 x0:int, x1:int, y0:int, y1:int, z0:int, z1:int):
+                 x0:int, x1:int, y0:int, y1:int, z0:int, z1:int,
+                 ys:int):
+        """
+
+        :param planes: The PlaneR plane placeholders for the block
+        :param x0: The X start of the block
+        :param x1: The X end of the block
+        :param y0: The Y start of the block
+        :param y1: The Y end of the block
+        :param z0: The Z start of the block
+        :param z1: The Z end of the block
+        :param ys: the size of a blockfs block in the Y direction
+        """
         self.planes = planes
         self.x0 = x0
         self.x1 = x1
@@ -57,6 +69,7 @@ class BlockD:
         self.y1 = y1
         self.z0 = z0
         self.z1 = z1
+        self.ys = ys
 
     def execute(self):
         block = np.zeros((self.z1 - self.z0,
@@ -77,7 +90,10 @@ class BlockD:
             with plane.memory.txn() as m:
                 block[destz.flatten(), desty.flatten(), destx.flatten()] = \
                     m[srcy.flatten(), srcx.flatten()]
-        DIRECTORY.write_block(block, self.x0, self.y0, self.z0)
+        for y0a in range(self.y0, self.y1, self.ys):
+            y1a = min(y0a + self.ys, self.y1)
+            DIRECTORY.write_block(block[:, y0a - self.y0:y1a - self.y0],
+                                  self.x0, y0a, self.z0)
 
 
 
@@ -109,22 +125,21 @@ def make_s2b_dependents(stack:SpimStack, directory:Directory):
 
     x0r = range(0, directory.x_extent, directory.x_block_size)
     x1r = [min(_+directory.x_block_size, directory.x_extent) for _ in x0r]
-    y0r = range(0, directory.y_extent, directory.y_block_size)
-    y1r = [min(_+directory.y_block_size, directory.y_extent) for _ in y0r]
     z0r = range(0, directory.z_extent, directory.z_block_size)
     z1r = [min(_+directory.z_block_size, directory.z_extent) for _ in z0r]
     dependents = []
-    for (x0, x1), (y0, y1), (z0, z1) in itertools.product(
-        zip(x0r, x1r), zip(y0r, y1r), zip(z0r, z1r)):
+    for (x0, x1), (z0, z1) in itertools.product(
+        zip(x0r, x1r), zip(z0r, z1r)):
         z0idx = max(stack.z0, x0 - z1 + 1)
         z1idx = min(stack.z1, x1 - z0)
         if z1idx <= z0idx:
             continue
         blockd = BlockD(planers[z0idx:z1idx],
-                        x0, x1, y0, y1, z0, z1)
+                        x0, x1, 0, directory.y_extent, z0, z1,
+                        directory.y_block_size)
         dependent = Dependent(
             prerequisites=resources[z0idx:z1idx],
             fn=blockd.execute,
-            name="block %d:%d %d:%d %d:%d" % (x0, x1, y0, y1, z0, z1))
+            name="block %d:%d %d:%d" % (x0, x1, z0, z1))
         dependents.append(dependent)
     return dependents
