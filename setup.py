@@ -26,6 +26,7 @@ setup(
         "stack2oblique=spimstitch.commands.stack2oblique:main",
         "oblique2stitched=spimstitch.commands.stitch_cmd:main"
     ]},
+    scripts=["scripts/spimstitch-pipeline.sh"],
     url="https://github.com/chunglabmit/spimstitch",
     license="MIT",
     classifiers=[
