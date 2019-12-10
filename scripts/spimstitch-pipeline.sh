@@ -1,3 +1,4 @@
+#!/bin/bash
 # Run this script in the directory to be processed
 #
 # Inputs:
