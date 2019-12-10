@@ -1,5 +1,6 @@
 import functools
 import logging
+import multiprocessing
 import numpy as np
 import unittest
 from spimstitch.pipeline import Resource, Dependent, Pipeline
@@ -57,19 +58,22 @@ def null_function():
 class TestPipeline(unittest.TestCase):
     def test_nothing(self):
         pipeline = Pipeline([])
-        pipeline.run(1)
+        with multiprocessing.Pool(1) as pool:
+            pipeline.run(pool)
 
     def test_simple(self):
         resource = Resource(null_function, "resource")
         dependant = Dependent([resource], null_function, "nothing")
         pipeline = Pipeline([dependant])
-        pipeline.run(1)
+        with multiprocessing.Pool(1) as pool:
+            pipeline.run(pool)
 
     def test_complex(self):
         cp = ComputePrimes(100)
         dependants = cp.make_dependants()
         pipeline = Pipeline(dependants)
-        pipeline.run(1)
+        with multiprocessing.Pool(1) as pool:
+            pipeline.run(pool)
         with cp.shmem.txn() as m:
             for i in range(2, 100):
                 if i in (2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53,

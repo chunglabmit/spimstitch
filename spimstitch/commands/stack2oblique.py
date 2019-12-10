@@ -1,6 +1,7 @@
 import argparse
 import glob
 import logging
+import multiprocessing
 import os
 from blockfs.directory import Directory
 from precomputed_tif.blockfs_stack import BlockfsStack
@@ -68,8 +69,9 @@ def main(args=sys.argv[1:]):
                           n_filenames=opts.n_writers)
     directory.create()
     directory.start_writer_processes()
-    spim_to_blockfs(stack, directory, opts.n_workers)
-    directory.close()
+    with multiprocessing.Pool(opts.n_workers) as pool:
+        spim_to_blockfs(stack, directory, pool)
+        directory.close()
     for level in range(2, opts.levels+1):
         bfs_stack.write_level_n(level, n_cores=opts.n_writers)
 

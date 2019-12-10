@@ -2,6 +2,7 @@ import collections
 import enum
 import logging
 import multiprocessing
+import os
 import sys
 import tqdm
 import typing
@@ -166,42 +167,42 @@ class Pipeline:
                 self.dependents_per_resource[requirement_keys] = []
             self.dependents_per_resource[requirement_keys].append(dependent)
 
-    def run(self, n_workers, silent=False):
+    def run(self, pool:multiprocessing.Pool, silent=False):
         self.progress_bar = tqdm.tqdm(total = len(self.dependents),
                                       disable=silent)
-        with multiprocessing.Pool(n_workers) as pool:
-            while len(self.dependents) > 0:
-                best = None
-                best_requirements = None
-                best_score = len(self.resources)+1
-                to_remove = []
-                for resources_key, dependents in \
-                        self.dependents_per_resource.items():
-                    dependent = dependents[0]
-                    if dependent.status == ResourceStatus.NOT_READY:
-                        requirements = set(dependent.requires())
-                        requirements.difference_update(self.in_flight)
-                        if 0 < len(requirements) < best_score:
-                            best = dependent
-                            best_requirements = requirements
-                            best_score = len(requirements)
-                    else:
-                        to_remove.append(resources_key)
-                for key in to_remove:
-                    del self.dependents_per_resource[key]
-                if best is None:
-                    # All dependents' requirements are in-flight
-                    # or all dependents are in-flight
-                    self.process_upqueue(pool)
-                    continue
-                for key in best_requirements:
-                    requirement = self.resources[key]
-                    self.in_flight.add(key)
-                    requirement.start_run(pool)
-                while len(self.in_flight) > n_workers:
-                    self.process_upqueue(pool)
-            while len(self.in_flight) > 0:
+        n_workers = os.cpu_count()
+        while len(self.dependents) > 0:
+            best = None
+            best_requirements = None
+            best_score = len(self.resources)+1
+            to_remove = []
+            for resources_key, dependents in \
+                    self.dependents_per_resource.items():
+                dependent = dependents[0]
+                if dependent.status == ResourceStatus.NOT_READY:
+                    requirements = set(dependent.requires())
+                    requirements.difference_update(self.in_flight)
+                    if 0 < len(requirements) < best_score:
+                        best = dependent
+                        best_requirements = requirements
+                        best_score = len(requirements)
+                else:
+                    to_remove.append(resources_key)
+            for key in to_remove:
+                del self.dependents_per_resource[key]
+            if best is None:
+                # All dependents' requirements are in-flight
+                # or all dependents are in-flight
                 self.process_upqueue(pool)
+                continue
+            for key in best_requirements:
+                requirement = self.resources[key]
+                self.in_flight.add(key)
+                requirement.start_run(pool)
+            while len(self.in_flight) > n_workers:
+                self.process_upqueue(pool)
+        while len(self.in_flight) > 0:
+            self.process_upqueue(pool)
         self.progress_bar.close()
 
     def process_upqueue(self, pool):

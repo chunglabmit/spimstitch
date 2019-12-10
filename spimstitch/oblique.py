@@ -1,15 +1,15 @@
 from blockfs.directory import Directory
-import functools
 import itertools
+import multiprocessing
 import numpy as np
-import os
 import tifffile
 import typing
-from .stack import make_stack, SpimStack, StackFrame
+from .stack import SpimStack, StackFrame
 from .shared_memory import  SharedMemory
 from .pipeline import Resource, Dependent, Pipeline
 
 DIRECTORY = None
+
 
 def get_blockfs_dims(stack:SpimStack) -> typing.Tuple[int,int,int, np.dtype]:
     """
@@ -26,6 +26,7 @@ def get_blockfs_dims(stack:SpimStack) -> typing.Tuple[int,int,int, np.dtype]:
     x_extent = x_extentish + z_extentish
     z_extent = x_extentish
     return z_extent, y_extent, x_extent, sf.img.dtype
+
 
 class PlaneR:
 
@@ -96,7 +97,6 @@ class BlockD:
                                   self.x0, y0a, self.z0)
 
 
-
 def make_resources(stack:SpimStack)\
         -> typing.Sequence[typing.Tuple[Resource, PlaneR]]:
     result = []
@@ -110,12 +110,14 @@ def make_resources(stack:SpimStack)\
     return result
 
 
-def spim_to_blockfs(stack:SpimStack, directory:Directory, n_workers):
+def spim_to_blockfs(stack:SpimStack, directory:Directory,
+                    pool:multiprocessing.Pool):
     global DIRECTORY
     DIRECTORY = directory
     dependents = make_s2b_dependents(stack, directory)
     pipeline = Pipeline(dependents)
-    pipeline.run(n_workers)
+    pipeline.run(pool)
+    DIRECTORY = None
 
 
 def make_s2b_dependents(stack:SpimStack, directory:Directory):
