@@ -404,3 +404,4 @@ def run(volumes:typing.Sequence[StitchSrcVolume], output: Directory,
                 itertools.product(xr, yr, zr),
                 total=len(xr) * len(yr) * len(zr)):
             do_block(x0, y0, z0, x0g, y0g, z0g)
+    OUTPUT.close()
