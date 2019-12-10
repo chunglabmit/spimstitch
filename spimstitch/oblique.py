@@ -111,13 +111,15 @@ def make_resources(stack:SpimStack)\
 
 
 def spim_to_blockfs(stack:SpimStack, directory:Directory,
-                    pool:multiprocessing.Pool):
+                    n_workers:int):
     global DIRECTORY
     DIRECTORY = directory
     dependents = make_s2b_dependents(stack, directory)
     pipeline = Pipeline(dependents)
-    pipeline.run(pool)
-    DIRECTORY = None
+    with multiprocessing.Pool(n_workers) as pool:
+        pipeline.run(pool)
+        directory.close()
+        DIRECTORY = None
 
 
 def make_s2b_dependents(stack:SpimStack, directory:Directory):

@@ -69,9 +69,7 @@ def main(args=sys.argv[1:]):
                           n_filenames=opts.n_writers)
     directory.create()
     directory.start_writer_processes()
-    with multiprocessing.Pool(opts.n_workers) as pool:
-        spim_to_blockfs(stack, directory, pool)
-        directory.close()
+    spim_to_blockfs(stack, directory, opts.n_workers)
     for level in range(2, opts.levels+1):
         bfs_stack.write_level_n(level, n_cores=opts.n_writers)
 
