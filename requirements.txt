@@ -1,0 +1,6 @@
+numpy
+tifffile
+tqdm
+git+git://github.com/chunglabmit/mp_shared_memory#egg=mp_shared_memory
+git+git://github.com/chunglabmit/blockfs#egg=blockfs
+git+git://github.com/chunglabmit/precomputed-tif#egg=precomputed-tif

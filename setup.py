@@ -7,7 +7,9 @@ with open("./README.md") as fd:
 
 install_requires = [
         "blockfs",
+        "mp_shared_memory",
         "numpy",
+        "precomputed-tif",
         "tifffile",
         "tqdm"
     ]

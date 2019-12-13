@@ -5,7 +5,7 @@ import numpy as np
 import tifffile
 import typing
 from .stack import SpimStack, StackFrame
-from .shared_memory import  SharedMemory
+from mp_shared_memory import SharedMemory
 from .pipeline import Resource, Dependent, Pipeline
 
 DIRECTORY = None
