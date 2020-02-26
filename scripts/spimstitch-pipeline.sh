@@ -3,8 +3,12 @@
 #
 # Inputs:
 # $1 - channel, e.g. Ex_642_Em_3
-#
+# $X_STEP_SIZE - size of X step in microns
+# $Y_VOXEL_SIZE - size of voxel in the Y direction in microns
 export channel=$1
+
+if [ -z "$X_STEP_SIZE" ]; then export X_STEP_SIZE=1.28; fi
+if [ -z "$Y_VOXEL_SIZE" ]; then export Y_VOXEL_SIZE=1.8; fi
 
 set -x
 #
@@ -59,6 +63,8 @@ oblique2stitched \
     --input $PWD/"$channel"_destriped_precomputed \
     --output $PWD/"$channel"_destriped_precomputed_stitched \
     --levels 7 \
+    --x-step-size "$X_STEP_SIZE" \
+    --y-voxel-size "$Y_Y_VOXEL_SIZE" \
     --n-writers 12 \
     --n-workers 24
 #
