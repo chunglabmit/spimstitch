@@ -93,7 +93,10 @@ def main(args=sys.argv[1:]):
     if not os.path.exists(l1_dir):
         os.mkdir(l1_dir)
     output = BlockfsStack((zs, ys, xs), opts.output)
-    output.write_info_file(opts.levels)
+    voxel_size = (opts.x_step_size * 1000,
+                  opts.y_voxel_size * 1000,
+                  opts.x_step_size * 1000)
+    output.write_info_file(opts.levels, voxel_size)
     directory_path = os.path.join(l1_dir, BlockfsStack.DIRECTORY_FILENAME)
     directory = Directory(xs, ys, zs, volumes[0].directory.dtype,
                           directory_path,

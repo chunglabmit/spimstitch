@@ -64,7 +64,7 @@ oblique2stitched \
     --output $PWD/"$channel"_destriped_precomputed_stitched \
     --levels 7 \
     --x-step-size "$X_STEP_SIZE" \
-    --y-voxel-size "$Y_Y_VOXEL_SIZE" \
+    --y-voxel-size "$Y_VOXEL_SIZE" \
     --n-writers 12 \
     --n-workers 24
 #
