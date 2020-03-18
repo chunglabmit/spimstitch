@@ -377,6 +377,8 @@ def get_output_size(volumes:typing.Sequence[StitchSrcVolume])\
     z0 = [int(volume.z0 / volume.zum + .5)  for volume in volumes]
     z1 = [z0i + volume.directory.z_extent for z0i, volume in
           zip(z0, volumes)]
+    if len(x0) == 1:
+        return z1[0] - z0[0], y1[0] - y0[0], x1[0] - x0[0]
     return max(*z1) - min(*z0), max(*y1) - min(*y0), max(*x1) - min(*x0)
 
 
