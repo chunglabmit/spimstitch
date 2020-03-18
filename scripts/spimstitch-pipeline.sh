@@ -12,6 +12,16 @@ if [ -z "$Y_VOXEL_SIZE" ]; then export Y_VOXEL_SIZE=1.8; fi
 
 set -x
 #
+# test for single directory
+#
+if [ `find $channel -name "*.dcimg" | wc -l` == 1 ]; then
+  export SINGLE_CHANNEL=1
+  export SINGLE_X=`ls $channel`
+  export SINGLE_XY=`ls $channel/"$SINGLE_X"`
+else
+  export SINGLE_CHANNEL=0
+fi
+#
 # For each x coordinate
 #
 for x in `ls $channel`;
@@ -59,6 +69,7 @@ done
 #
 # Stitch all of the oblique stacks into a unitary precomputed volume
 #
+if [ $SINGLE_CHANNEL == 0 ] then
 oblique2stitched \
     --input $PWD/"$channel"_destriped_precomputed \
     --output $PWD/"$channel"_destriped_precomputed_stitched \
@@ -73,6 +84,11 @@ oblique2stitched \
 blockfs2tif \
     --input "$channel"_destriped_precomputed_stitched/1_1_1/precomputed.blockfs \
     --output-pattern "$channel"_destriped_stitched/img_%04d.tiff
+else
+  blockfs2tif \
+    --input "$channel"_destriped_precomputed/"$SINGLE_X"/"$SINGLE_XY"/1_1_1/precomputed.blockfs \
+    --output-pattern "$channel"_destriped_stitched/img_%04d.tiff
+fi
 #
 # Clean up by deleting all intermediate files
 #
