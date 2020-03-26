@@ -69,7 +69,8 @@ done
 #
 # Stitch all of the oblique stacks into a unitary precomputed volume
 #
-if [ $SINGLE_CHANNEL == 0 ] then
+if [ $SINGLE_CHANNEL == 0 ]
+then
 oblique2stitched \
     --input $PWD/"$channel"_destriped_precomputed \
     --output $PWD/"$channel"_destriped_precomputed_stitched \
