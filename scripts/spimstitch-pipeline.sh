@@ -40,11 +40,12 @@ do
 	pystripe \
 	    --input "$channel"_raw/"$x"/"$xy" \
 	    --output "$channel"_destriped/"$x"/"$xy" \
-	    --sigma1 128 \
-	    --sigma2 512 \
-	    --wavelet db5 \
-	    --crossover 10 \
+	    --lightsheet \
 	    --workers 48
+  #	    --sigma1 128 \
+  #	    --sigma2 512 \
+	#    --wavelet db5 \
+	#    --crossover 10 \
 	#
 	# Convert the stack of TIFFs to an oblique blockfs volume
 	#
