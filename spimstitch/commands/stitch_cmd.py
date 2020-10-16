@@ -55,6 +55,13 @@ def parse_args(args=sys.argv[1:]):
         default=1.8,
         type=float)
     parser.add_argument(
+        "--z-offset",
+        help="# of voxels of offset between the start of the stack above "
+             "in Z and the stack underneath it",
+        default=2048,
+        type=int
+    )
+    parser.add_argument(
         "--output-size",
         help="Size of the output volume (x,y,z). Defaults to the extent of all "
              "prestitched volumes.")
@@ -68,15 +75,22 @@ def main(args=sys.argv[1:]):
     opts = parse_args(args)
     logging.basicConfig(level=getattr(logging,opts.log_level))
     volume_paths = []
-    for root, folders, files in os.walk(opts.input):
+    zs = []
+
+    for root, folders, files in os.walk(opts.input, followlinks=True):
         if os.path.split(root)[-1] == "1_1_1":
             for file in files:
                 if file == BlockfsStack.DIRECTORY_FILENAME:
                     volume_paths.append(os.path.join(root, file))
-    volumes = [StitchSrcVolume(volume_path,
-                               opts.x_step_size,
-                               opts.y_voxel_size)
-               for volume_path in volume_paths]
+                    zs.append(os.path.split(os.path.dirname(root))[1])
+    all_z = sorted(set(zs))
+    z_offsets = [opts.z_offset * all_z.index(z) for z in zs]
+    volumes = [
+        StitchSrcVolume(volume_path,
+                        opts.x_step_size,
+                        opts.y_voxel_size,
+                        z_offset)
+        for volume_path, z_offset in zip(volume_paths, z_offsets)]
     StitchSrcVolume.rebase_all(volumes)
     if opts.output_size is None:
         zs, ys, xs = get_output_size(volumes)

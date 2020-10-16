@@ -5,10 +5,13 @@
 # $1 - channel, e.g. Ex_642_Em_3
 # $X_STEP_SIZE - size of X step in microns
 # $Y_VOXEL_SIZE - size of voxel in the Y direction in microns
+# $Z_OFFSET - the offset in voxels between DCIMG stacks in the Z direction
+set -e
 export channel=$1
 
 if [ -z "$X_STEP_SIZE" ]; then export X_STEP_SIZE=1.28; fi
 if [ -z "$Y_VOXEL_SIZE" ]; then export Y_VOXEL_SIZE=1.8; fi
+if [ -z "$Z_OFFSET" ]; then export Z_OFFSET=2048; fi
 
 set -x
 #
@@ -29,12 +32,17 @@ do
     for xy in `ls $channel/$x`;
     # For the x_y coordinate combinations
     do
+      for dcimg in `ls $channel/$x/$xy/*.dcimg`;
+        do
+  #
+  # Find Z from dcimg
+  #
+  z=`echo $dcimg | cut -d. -f1`
 	#
 	# Make the directories we will need for X and Y
 	#
-	mkdir -p "$channel"_raw/"$x"/"$xy"
-	mkdir -p "$channel"_destriped_precomputed/"$x"/"$xy"
-	export dcimg=`ls $channel/$x/$xy/*.dcimg`
+	mkdir -p "$channel"_raw/"$x"/"$xy"/"$z"
+	mkdir -p "$channel"_destriped_precomputed/"$x"/"$xy"/"$z"
 	#
 	# Convert images from .dcimg format to TIFF
 	#
@@ -43,13 +51,13 @@ do
 	    --rotate-90 3 \
 	    --flip-ud \
 	    --input "$dcimg" \
-	    --output-pattern "$channel"_raw/"$x"/"$xy"/img_%05d.tiff
+	    --output-pattern "$channel"_raw/"$x"/"$xy"/"$z"/img_%05d.tiff
 	#
 	# Destripe
 	#
 	pystripe \
-	    --input "$channel"_raw/"$x"/"$xy" \
-	    --output "$channel"_destriped/"$x"/"$xy" \
+	    --input "$channel"_raw/"$x"/"$xy"/"$z" \
+	    --output "$channel"_destriped/"$x"/"$xy"/"$z" \
 	    --lightsheet \
 	    --workers 48
   #	    --sigma1 128 \
@@ -59,12 +67,23 @@ do
 	#
 	# Convert the stack of TIFFs to an oblique blockfs volume
 	#
-	stack2oblique \
-	    --n-workers 24 \
-	    --n-writers 12 \
-	    --input "$channel"_destriped/"$x"/"$xy"/"img*.tiff" \
-            --output "$PWD"/"$channel"_destriped_precomputed/"$x"/"$xy" \
-	    --levels 4
+	if [ $SINGLE_CHANNEL == 0 ]
+	then
+    stack2oblique \
+        --n-workers 24 \
+        --n-writers 12 \
+        --input "$channel"_destriped/"$x"/"$xy"/"$z"/"img*.tiff" \
+        --output "$PWD"/"$channel"_destriped_precomputed/"$x"/"$xy"/"$z" \
+        --levels 4
+  else
+    stack2oblique \
+        --n-workers 24 \
+        --n-writers 12 \
+        --input "$channel"_destriped/"$x"/"$xy"/"$z"/"img*.tiff" \
+        --output "$PWD"/"$channel"_destriped_precomputed \
+        --levels 5
+  fi
+	      done
     done
 done
 #
@@ -78,7 +97,8 @@ oblique2stitched \
     --levels 7 \
     --x-step-size "$X_STEP_SIZE" \
     --y-voxel-size "$Y_VOXEL_SIZE" \
-    --n-writers 12 \
+    --z-offset "$Z_OFFSET" \
+    --n-writers 11 \
     --n-workers 24
 #
 # Convert the precomputed volume's level 1 blockfs to TIFFs
@@ -88,7 +108,7 @@ blockfs2tif \
     --output-pattern "$channel"_destriped_stitched/img_%04d.tiff
 else
   blockfs2tif \
-    --input "$channel"_destriped_precomputed/"$SINGLE_X"/"$SINGLE_XY"/1_1_1/precomputed.blockfs \
+    --input "$channel"_destriped_precomputed/1_1_1/precomputed.blockfs \
     --output-pattern "$channel"_destriped_stitched/img_%04d.tiff
 fi
 #
@@ -96,5 +116,8 @@ fi
 #
 rm -r "$channel"_raw
 rm -r "$channel"_destriped
-rm -r "$channel"_destriped_precomputed
+if [ $SINGLE_CHANNEL == 0 ]
+then
+  rm -r "$channel"_destriped_precomputed
+fi
 

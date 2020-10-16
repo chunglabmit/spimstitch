@@ -12,7 +12,7 @@ import uuid
 
 class StitchSrcVolume:
 
-    def __init__(self, path:str, x_step_size:float, yum:float):
+    def __init__(self, path:str, x_step_size:float, yum:float, z0:int):
         """
 
         :param path: Path to a blockfs directory file. The path contains
@@ -22,6 +22,7 @@ class StitchSrcVolume:
         X pixel size is sqrt(2) * x_step_size, so the Z pixel size is the
         same as the stepper size.
         :param yum: Y pixel size of pixels in the original planes
+        :param z0: z0 of the stack.
         """
         self.key = uuid.uuid4()
         self.path = path
@@ -29,9 +30,10 @@ class StitchSrcVolume:
         self.xum = x_step_size
         self.zum = x_step_size
         self.yum = yum
-        metadata_dir = os.path.split(os.path.dirname(os.path.dirname(path)))[-1]
+        z_metadata_dir = os.path.dirname(os.path.dirname(path))
+        metadata_dir = os.path.split(os.path.dirname(z_metadata_dir))[-1]
         self.x0, self.y0 = [int(_) / 10 for _ in metadata_dir.split("_")]
-        self.z0 = 0
+        self.z0 = z0
 
     def rebase(self, x0:float, y0:float)->type(None):
         """

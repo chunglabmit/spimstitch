@@ -35,8 +35,7 @@ def parse_args(args = sys.argv[1:]):
     parser.add_argument(
         "--flip-ud",
         help="Flip in the Y direction after rotating",
-        action="store_true"
-    )
+        action="store_true")
     return parser.parse_args(args)
 
 
