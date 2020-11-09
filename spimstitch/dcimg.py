@@ -23,6 +23,7 @@ class DCIMG:
     OFFSET_X_DIM = 18
     OFFSET_Y_DIM = 19
     OFFSET_RASTER_LENGTH = 20
+    OFFSET_HEADER_END = 24 # file offset to first image header.
     #
     # There is a 32-bit image header in front of every image
     #
@@ -38,13 +39,18 @@ class DCIMG:
             version = np.frombuffer(version_buffer, ">u4")
             if version == 2:
                 pre_header = fd.read(DCIMG.PRE_HEADER_SIZE_V2)
-                ipre_header = np.frombuffer(pre_header, np.uint32)
-                self.img_header_size = ipre_header[DCIMG.PRE_OFFSET_HEADER_SIZE]
             else:
                 pre_header = fd.read(DCIMG.PRE_HEADER_SIZE_V1)
-                self.img_header_size = DCIMG.IMG_HEADER_SIZE_V1
+
             header = fd.read(DCIMG.HEADER_SIZE)
-        int_header = np.frombuffer(header, np.uint32)
+            int_header = np.frombuffer(header, np.uint32)
+            if version == 2:
+                ipre_header = np.frombuffer(pre_header, np.uint32)
+                self.img_header_size = ipre_header[DCIMG.PRE_OFFSET_HEADER_SIZE]
+                self.header_end = int_header[DCIMG.OFFSET_HEADER_END]
+            else:
+                self.img_header_size = DCIMG.IMG_HEADER_SIZE_V1
+                self.header_end = DCIMG.HEADER_SIZE + len(DCIMG.COOKIE)
         self.n_frames = int_header[DCIMG.OFFSET_N_FRAMES]
         self.bytes_per_pixel = int_header[DCIMG.OFFSET_N_BYTES_PER_PIXEL]
         self.n_channels = int_header[DCIMG.OFFSET_N_CHANNELS]
@@ -54,8 +60,7 @@ class DCIMG:
     def read_frame(self, idx):
         size = self.bytes_per_pixel * self.x_dim * self.y_dim
         with open(self.path, "rb") as fd:
-            offset = len(DCIMG.COOKIE) + DCIMG.HEADER_SIZE + \
-                     idx * (self.img_header_size + size)
+            offset = self.header_end + idx * (self.img_header_size + size)
             fd.seek(offset)
             img_header = fd.read(self.img_header_size)
             img = np.frombuffer(fd.read(size), "u%d" % self.bytes_per_pixel)
