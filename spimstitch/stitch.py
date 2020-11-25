@@ -9,10 +9,13 @@ import tqdm
 import typing
 import uuid
 
+from scipy import ndimage
+
 
 class StitchSrcVolume:
 
-    def __init__(self, path:str, x_step_size:float, yum:float, z0:int):
+    def __init__(self, path:str, x_step_size:float, yum:float, z0:int,
+                 is_oblique:bool=True):
         """
 
         :param path: Path to a blockfs directory file. The path contains
@@ -23,6 +26,7 @@ class StitchSrcVolume:
         same as the stepper size.
         :param yum: Y pixel size of pixels in the original planes
         :param z0: z0 of the stack.
+        :param is_oblique: True if oblique, False if doing non-oblique stitch
         """
         self.key = uuid.uuid4()
         self.path = path
@@ -34,20 +38,24 @@ class StitchSrcVolume:
         metadata_dir = os.path.split(os.path.dirname(z_metadata_dir))[-1]
         self.x0, self.y0 = [int(_) / 10 for _ in metadata_dir.split("_")]
         self.z0 = z0
+        self.is_oblique = is_oblique
 
-    def rebase(self, x0:float, y0:float)->type(None):
+    def rebase(self, x0:float, y0:float, z0:float=None)->type(None):
         """
         Once we find out where the top left corner is, we rebase all the
         stacks so that the first one starts at 0.
 
         :param x0: The absolute left of all of the stacks
         :param y0: The absolute top of all of the stacks
+        :param z0: The absolute z-top of the stacks, if present
         """
         self.x0 -= x0
         self.y0 -= y0
+        if z0 is not None:
+            self.z0 -= z0
 
     @staticmethod
-    def rebase_all(volumes:typing.Sequence["StitchSrcVolume"]):
+    def rebase_all(volumes:typing.Sequence["StitchSrcVolume"], z_too=False):
         """
         Rebase all the volumes so that the whole space starts at zero
 
@@ -55,15 +63,23 @@ class StitchSrcVolume:
         """
         x0 = volumes[0].x0
         y0 = volumes[0].y0
+        z0 = volumes[0].z0
         for volume in volumes[1:]:
             x0 = min(x0, volume.x0)
             y0 = min(y0, volume.y0)
+            z0 = min(z0, volume.z0)
         for volume in volumes:
-            volume.rebase(x0, y0)
+            if z_too:
+                volume.rebase(x0, y0, z0)
+            else:
+                volume.rebase(x0, y0)
 
     @property
     def trailing_oblique_start(self):
-        return self.directory.x_extent - self.directory.z_extent
+        if self.is_oblique:
+            return self.directory.x_extent - self.directory.z_extent
+        else:
+            return self.directory.x_extent
 
     def x_overlap(self, other:"StitchSrcVolume") -> int:
         """
@@ -129,13 +145,16 @@ class StitchSrcVolume:
         z1_relative = self.z_relative(z1)
         if z1_relative < 0:
             return False
-        #
-        # The corner cases
-        #
-        if x0_relative < z0_relative:
-            return False # top corner of block is below the leading oblique
-       # bottom corner of block is above the trailing oblique
-        return x1_relative - self.trailing_oblique_start < z1_relative
+        if self.is_oblique:
+            #
+            # The corner cases
+            #
+            if x0_relative < z0_relative:
+                return False # top corner of block is below the leading oblique
+            # bottom corner of block is above the trailing oblique
+            return x1_relative - self.trailing_oblique_start < z1_relative
+        else:
+            return True
 
     def is_inside(self, x0: int, x1: int, y0: int, y1: int, z0: int, z1: int)\
             -> bool:
@@ -155,10 +174,11 @@ class StitchSrcVolume:
         z0r = self.z_relative(z0)
         if any([_ < 0 for _ in (x0r, y0r, z0r)]):
             return False
-        if x0r < z0r:
-            return False
-        if x0r + x1 - x1 - self.trailing_oblique_start > z0r + z1 - z0:
-            return False
+        if self.is_oblique:
+            if x0r < z0r:
+                return False
+            if x0r + x1 - x1 - self.trailing_oblique_start > z0r + z1 - z0:
+                return False
         if y0r + y1 - y0 > self.directory.y_extent:
             return False
         if z0r + z1 - z0 > self.directory.z_extent:
@@ -173,6 +193,30 @@ class StitchSrcVolume:
 
     def x_relative(self, x):
         return int(x - self.x0 / self.xum + .5)
+
+    @property
+    def x0_global(self):
+        return int(self.x0 / self.xum + .5)
+
+    @property
+    def x1_global(self):
+        return self.x0_global + self.directory.x_extent
+
+    @property
+    def y0_global(self):
+        return int(self.y0 / self.yum + .5)
+
+    @property
+    def y1_global(self):
+        return self.y0_global + self.directory.y_extent
+
+    @property
+    def z0_global(self):
+        return int(self.z0 / self.zum + .5)
+
+    @property
+    def z1_global(self):
+        return self.z0_global + self.directory.z_extent
 
     @staticmethod
     def find_volumes(volumes:typing.Sequence["StitchSrcVolume"],
@@ -207,7 +251,6 @@ class StitchSrcVolume:
         :return: a boolean array of the size of the block where each array
         voxel is True if the voxel is within the volume.
         """
-        mask = np.ones((z1 - z0, y1 - y0, x1 - x0), bool)
         x0r = self.x_relative(x0)
         y0r = self.y_relative(y0)
         z0r = self.z_relative(z0)
@@ -216,7 +259,11 @@ class StitchSrcVolume:
         z1r = z0r + z1 - z0
         z, y, x = np.mgrid[z0r:z1r, y0r:y1r, x0r:x1r]
 
-        mask = (x >= z) & (x - self.trailing_oblique_start < z) &\
+        if self.is_oblique:
+            mask = (x >= z) & (x - self.trailing_oblique_start < z)
+        else:
+            mask = (x >= 0) & (z < self.directory.x_extent)
+        mask = mask & \
                (y >= 0) & (y < self.directory.y_extent) &\
                (z >= 0) & (z < self.directory.z_extent)
         return mask
@@ -245,8 +292,12 @@ class StitchSrcVolume:
                   self.z_relative(z0):self.z_relative(z0) + zs,
                   self.y_relative(y0):self.y_relative(y0) + ys,
                   self.x_relative(x0):self.x_relative(x0) + xs]
-        to_x0 = x - z
-        to_x1 = self.directory.x_extent - x - z
+        if self.is_oblique:
+            to_x0 = x - z
+            to_x1 = self.directory.x_extent - x - z
+        else:
+            to_x0 = x
+            to_x1 = self.directory.x_extent - x
         to_x = np.maximum(0, np.minimum(to_x0, to_x1))
         to_y0 = y
         to_y1 = self.directory.y_extent - y
@@ -303,10 +354,117 @@ class StitchSrcVolume:
             y1f = min(y0f + sub_block.shape[1], y1a)
             z1f = min(z0f + sub_block.shape[0], z1a)
             sub_block = sub_block[:z1f-z0f, :y1f-y0f, :x1f-x0f]
-            block[z0f - z0a:z1f - z0a,
-                  y0f - y0a:y1f - y0a,
-                  x0f - x0a:x1f - x0a] = sub_block
+            block[z0f - z0r:z1f - z0r,
+                  y0f - y0r:y1f - y0r,
+                  x0f - x0r:x1f - x0r] = sub_block
         return block
+
+    def align(self, other:"StitchSrcVolume",
+              x:int, y:int, z:int,
+              pad:typing.Tuple[int, int, int],
+              sigma:typing.Tuple[float, float, float],
+              border:typing.Tuple[int, int, int],
+              max_iter=100) -> \
+            typing.Tuple[float, typing.Tuple[float, float, float]]:
+        """
+        Align two volumes, centered around a position.
+
+        :param other: the other volume to match against.
+        :param x: x coordinate of initial position in pixels (global)
+        :param y: y coordinate of initial position in pixels (global)
+        :param z: z coordinate of initial position in pixels (global)
+        :param pad: the half-size of the window in which we look
+        :param sigma: the blurring sigma
+        :param border: the amount we fetch, in addition to the padding to allow
+        us to move without having to refetch
+        :return: a tuple of pearson correlation coefficient and the adjusted
+        position in the "other" volume
+        """
+        z0, y0, x0 = [a - b for a, b in zip((z, y, x), pad)]
+        z1, y1, x1 = [a + b + 1for a, b in zip((z, y, x), pad)]
+        if not self.is_inside(x0, x1, y0, y1, z0, z1) or \
+            not other.is_inside(x0, x1, y0, y1, z0, z1):
+            return 0, (z, y, x)
+        fixed = ndimage.gaussian_filter(
+            self.read_block(x0, x1, y0, y1, z0, z1).astype(np.float32),
+            sigma=sigma)
+        xm, ym, zm = x, y, z
+        x0mb = y0mb = z0mb = x1mb = y1mb = z1mb = 0
+        positions_seen = set((z, y, x))
+        last_best = 0
+        for iter in range(max_iter):
+            z0m, y0m, x0m = [a - b - 1 for a, b in zip((zm, ym, xm), pad)]
+            z1m, y1m, x1m = [a + b + 2 for a, b in zip((zm, ym, xm), pad)]
+            if not other.is_inside(x0m, x1m, y0m, y1m, z0m, z1m):
+                # we are at the border, no clear way to proceed.
+                return last_best, [xm, ym, zm]
+            if x0mb > x0m or y0mb > y0m or z0mb > z0m or \
+                x1mb < x1m or y1mb < y1m or z1mb < z1m:
+                # We need to read another window.
+                window, (x0mb, x1mb, y0mb, y1mb, z0mb, z1mb) = \
+                    self.read_window(x0m, x1m, y0m, y1m, z0m, z1m, border)
+                moving = ndimage.gaussian_filter(window.astype(np.float32),
+                                                 sigma=sigma)
+            gradient = compute_pearson_gradient(
+                fixed, moving[z0m-z0mb:z1m-z0mb,
+                              y0m-y0mb:y1m-y1mb,
+                              x0m-x0mb:x1m-x1mb])
+            last_best = np.max(gradient)
+            dz, dy, dx = np.argwhere(gradient == last_best)[0] - 1
+            zm, ym, xm = zm + dz, ym + dy, xm + dx
+            if (zm, ym, xm) in positions_seen:
+                return last_best, (zm, ym, xm)
+            positions_seen.add((zm, ym, xm))
+        return last_best, (zm, ym, xm)
+
+    def read_window(self, x0:int, x1:int, y0:int, y1:int, z0:int, z1:int,
+                    border=typing.Tuple[int, int, int]) ->\
+            typing.Tuple[np.ndarray,
+                         typing.Tuple[int, int, int, int, int, int]]:
+        """
+        Try to read a window with a border, at least reading the minimum
+        volume entered.
+
+        :param x0: global x min position that must be read.
+        :param x1: global x max position that must be read.
+        :param y0: global y min position that must be read.
+        :param y1: global y max position that must be read.
+        :param z0: global z min position that must be read.
+        :param z1: global z max position that must be read.
+        :param border: the optimal border to be read, in z, y, x form
+        :return: a two tuple:
+            the array returned,
+            a six-tuple of x0, x1, y0, y1, z0, z1 which are the global
+            coordinates of the array
+        """
+        x0a = max(x0 - border[2], self.x0_global)
+        x1a = min(x1 + border[2], self.x1_global)
+        y0a = max(y0 - border[1], self.y0_global)
+        y1a = min(y1 + border[1], self.y1_global)
+        z0a = max(z0 - border[1], self.z0_global)
+        z1a = min(z1 + border[1], self.z1_global)
+        return self.read_block(x0a, x1a, y0a, y1a, z0a, z1a),\
+               (x0a, x1a, y0a, y1a, z0a, z1a)
+
+
+def compute_pearson_gradient(fixed:np.ndarray, moving:np.ndarray)->np.ndarray:
+    """
+    Compute the Pearson Correlation Coefficient at a central point and all
+    26 points immediately surrounding it
+
+    :param fixed: the fixed array
+    :param moving: the moving array which must be +2 bigger in each direction,
+    centered at +1 offset
+    :return: a 3x3x3 array of correlation coefficients at each direction
+    """
+    gradient = np.zeros((3, 3, 3))
+    for i, j, k in itertools.product((0, 1, 2), (0, 1, 2), (0, 1, 2)):
+        gradient[i, j, k] = np.corrcoef(
+            fixed.flatten(),
+            moving[i:i+fixed.shape[0],
+                   j:j+fixed.shape[1],
+                   k:k+fixed.shape[2]].flatten())[0, 1]
+    return gradient
 
 # The global list of volumes goes here - a dictionary of UUID to volume
 VOLUMES:typing.Dict[uuid.UUID, StitchSrcVolume] = None
@@ -314,6 +472,10 @@ VOLUMES:typing.Dict[uuid.UUID, StitchSrcVolume] = None
 # The output volume directory goes here
 OUTPUT:Directory = None
 
+def set_volumes_and_output(volumes, output):
+    global VOLUMES, OUTPUT
+    VOLUMES=volumes
+    OUTPUT=output
 
 def do_block(x0: int, y0:int, z0: int, x0g:int, y0g:int, z0g:int):
     zs, ys, xs = OUTPUT.get_block_size(x0-x0g, y0-y0g, z0-z0g)

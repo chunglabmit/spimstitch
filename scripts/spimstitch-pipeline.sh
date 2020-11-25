@@ -32,8 +32,12 @@ do
     for xy in `ls $channel/$x`;
     # For the x_y coordinate combinations
     do
-      for dcimg in `ls $channel/$x/$xy/*.dcimg`;
+      for dcimg_path in `ls $channel/$x/$xy/*.dcimg`;
         do
+  #
+  # Cut away the directory
+  #
+  dcimg=`basename dcimg_path`
   #
   # Find Z from dcimg
   #
@@ -50,7 +54,7 @@ do
 	    --n-workers 24 \
 	    --rotate-90 3 \
 	    --flip-ud \
-	    --input "$dcimg" \
+	    --input "$dcimg_path" \
 	    --output-pattern "$channel"_raw/"$x"/"$xy"/"$z"/img_%05d.tiff
 	#
 	# Destripe
