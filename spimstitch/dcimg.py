@@ -3,6 +3,7 @@ import numpy as np
 class DCIMG:
 
     HEADER_SIZE = 728
+    HEADER_SIZE_V1 = 832
     PRE_HEADER_SIZE_V1 = 100
     PRE_HEADER_SIZE_V2 = 500
     COOKIE = b"DCIMG\0\0\0"
@@ -50,7 +51,7 @@ class DCIMG:
                 self.header_end = int_header[DCIMG.OFFSET_HEADER_END]
             else:
                 self.img_header_size = DCIMG.IMG_HEADER_SIZE_V1
-                self.header_end = DCIMG.HEADER_SIZE + len(DCIMG.COOKIE)
+                self.header_end = DCIMG.HEADER_SIZE_V1 + len(DCIMG.COOKIE)
         self.n_frames = int_header[DCIMG.OFFSET_N_FRAMES]
         self.bytes_per_pixel = int_header[DCIMG.OFFSET_N_BYTES_PER_PIXEL]
         self.n_channels = int_header[DCIMG.OFFSET_N_CHANNELS]
