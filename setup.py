@@ -26,7 +26,7 @@ setup(
     entry_points={ 'console_scripts': [
         "dcimg2tif=spimstitch.commands.dcimg2tif:main",
         "stack2oblique=spimstitch.commands.stack2oblique:main",
-        "oblique2stitched=spimstitch.commands.stitch_cmd:main"
+        "oblique2stitched=spimstitch.commands.stitch_cmd:main",
         "nonoblique2stitched=spimstitch.commands.stitch_nonoblique_cmd:main"
     ]},
     scripts=["scripts/spimstitch-pipeline.sh"],
