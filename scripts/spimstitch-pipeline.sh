@@ -37,7 +37,7 @@ do
   #
   # Cut away the directory
   #
-  dcimg=`basename dcimg_path`
+  dcimg=`basename $dcimg_path`
   #
   # Find Z from dcimg
   #
