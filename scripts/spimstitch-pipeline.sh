@@ -13,7 +13,7 @@ if [ -z "$X_STEP_SIZE" ]; then export X_STEP_SIZE=1.28; fi
 if [ -z "$Y_VOXEL_SIZE" ]; then export Y_VOXEL_SIZE=1.8; fi
 if [ -z "$Z_OFFSET" ]; then export Z_OFFSET=2048; fi
 if [ -z "$ILLUM_CORR" ]; then
-  ILLUM_CORR=$channel"-illuc.tiff
+  ILLUM_CORR="$channel"-illuc.tiff
   oblique-illum-corr \
     --output $ILLUM_CORR \
     --n-frames 5000 \
@@ -21,7 +21,7 @@ if [ -z "$ILLUM_CORR" ]; then
     --values-per-bin 4 \
     --rotate-90 3 \
     --flip-ud \
-    `find channel -name "*.dcimg"`
+    `find $channel -name "*.dcimg"`
 fi
 PYSTRIPE_EXTRA_ARGS="--flat $ILLUM_CORR --dark 0"
 
