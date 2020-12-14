@@ -13,10 +13,18 @@ if [ -z "$X_STEP_SIZE" ]; then export X_STEP_SIZE=1.28; fi
 if [ -z "$Y_VOXEL_SIZE" ]; then export Y_VOXEL_SIZE=1.8; fi
 if [ -z "$Z_OFFSET" ]; then export Z_OFFSET=2048; fi
 if [ -z "$ILLUM_CORR" ]; then
-  PYSTRIPE_EXTRA_ARGS=
-else
-  PYSTRIPE_EXTRA_ARGS="--flat $ILLUM_CORR --dark 0"
+  ILLUM_CORR=$channel"-illuc.tiff
+  oblique-illum-corr \
+    --output $ILLUM_CORR \
+    --n-frames 5000 \
+    --n-bins 1024 \
+    --values-per-bin 4 \
+    --rotate-90 3 \
+    --flip-ud \
+    `find channel -name "*.dcimg"`
 fi
+PYSTRIPE_EXTRA_ARGS="--flat $ILLUM_CORR --dark 0"
+
 if [ -z "$USE_WAVELETS" ]; then
   PYSTRIPE_EXTRA_ARGS+=" --sigma1 128 --sigma2 512 --wavelet db5 --crossover 10"
 else
