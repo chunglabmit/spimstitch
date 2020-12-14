@@ -149,12 +149,31 @@ class StitchSrcVolume:
             #
             # The corner cases
             #
-            if x0_relative < z0_relative:
+            if x1_relative <= z1_relative:
                 return False # top corner of block is below the leading oblique
             # bottom corner of block is above the trailing oblique
-            return x1_relative - self.trailing_oblique_start < z1_relative
+            return x1_relative - self.trailing_oblique_start > z0_relative
         else:
             return True
+
+    def find_overlap(self, other:"StitchSrcVolume") ->\
+            typing.Tuple[typing.Tuple[int, int, int],
+                         typing.Tuple[int, int, int]]:
+        """
+        Find the overlap of this volume with another
+
+        :param other: the other volume
+        :return: the overlap in global coordinates as two three-tuples,
+        the first being the minimum corner (z, y, x) and the second
+        the maximum.
+        """
+        x0i = max(self.x0_global, other.x0_global)
+        x1i = min(self.x1_global, other.x1_global)
+        y0i = max(self.y0_global, other.y0_global)
+        y1i = min(self.y1_global, other.y1_global)
+        z0i = max(self.z0_global, other.z0_global)
+        z1i = min(self.z1_global, other.z1_global)
+        return (z0i, y0i, x0i), (z1i, y1i, x1i)
 
     def is_inside(self, x0: int, x1: int, y0: int, y1: int, z0: int, z1: int)\
             -> bool:
@@ -395,21 +414,25 @@ class StitchSrcVolume:
         for iter in range(max_iter):
             z0m, y0m, x0m = [a - b - 1 for a, b in zip((zm, ym, xm), pad)]
             z1m, y1m, x1m = [a + b + 2 for a, b in zip((zm, ym, xm), pad)]
-            if not other.is_inside(x0m, x1m, y0m, y1m, z0m, z1m):
+            if x0m < other.x0_global or x1m > other.x1_global or\
+                y0m < other.y0_global or y1m > other.y1_global or\
+                z0m < other.z0_global or z1m > other.z1_global:
                 # we are at the border, no clear way to proceed.
-                return last_best, [xm, ym, zm]
+                return last_best, [zm, ym, xm]
             if x0mb > x0m or y0mb > y0m or z0mb > z0m or \
                 x1mb < x1m or y1mb < y1m or z1mb < z1m:
                 # We need to read another window.
                 window, (x0mb, x1mb, y0mb, y1mb, z0mb, z1mb) = \
-                    self.read_window(x0m, x1m, y0m, y1m, z0m, z1m, border)
+                    other.read_window(x0m, x1m, y0m, y1m, z0m, z1m, border)
                 moving = ndimage.gaussian_filter(window.astype(np.float32),
                                                  sigma=sigma)
             gradient = compute_pearson_gradient(
                 fixed, moving[z0m-z0mb:z1m-z0mb,
-                              y0m-y0mb:y1m-y1mb,
-                              x0m-x0mb:x1m-x1mb])
-            last_best = np.max(gradient)
+                              y0m-y0mb:y1m-y0mb,
+                              x0m-x0mb:x1m-x0mb])
+            if np.all(np.isnan(gradient)):
+                return last_best, (zm, ym, xm)
+            last_best = np.nanmax(gradient)
             dz, dy, dx = np.argwhere(gradient == last_best)[0] - 1
             zm, ym, xm = zm + dz, ym + dy, xm + dx
             if (zm, ym, xm) in positions_seen:

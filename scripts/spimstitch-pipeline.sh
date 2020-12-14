@@ -12,6 +12,15 @@ export channel=$1
 if [ -z "$X_STEP_SIZE" ]; then export X_STEP_SIZE=1.28; fi
 if [ -z "$Y_VOXEL_SIZE" ]; then export Y_VOXEL_SIZE=1.8; fi
 if [ -z "$Z_OFFSET" ]; then export Z_OFFSET=2048; fi
+if [ -z "$ILLUM_CORR" ]; then
+  PYSTRIPE_EXTRA_ARGS=
+else
+  PYSTRIPE_EXTRA_ARGS="--flat $ILLUM_CORR --dark 0"
+fi
+if [ -z "$USE_WAVELETS" ]; then
+  PYSTRIPE_EXTRA_ARGS+=" --sigma1 128 --sigma2 512 --wavelet db5 --crossover 10"
+else
+  PYSTRIPE_EXTRA_ARGS+=" --lightsheet"
 
 set -x
 #
@@ -62,12 +71,8 @@ do
 	pystripe \
 	    --input "$channel"_raw/"$x"/"$xy"/"$z" \
 	    --output "$channel"_destriped/"$x"/"$xy"/"$z" \
-	    --lightsheet \
+	    $PYSTRIPE_EXTRA_ARGS \
 	    --workers 48
-  #	    --sigma1 128 \
-  #	    --sigma2 512 \
-	#    --wavelet db5 \
-	#    --crossover 10 \
 	#
 	# Convert the stack of TIFFs to an oblique blockfs volume
 	#
@@ -95,6 +100,21 @@ done
 #
 if [ $SINGLE_CHANNEL == 0 ]
 then
+export ALIGN_FILE=$PWD/"$channel"-align.json
+oblique-align \
+    --input $PWD/"$channel"_destriped_precomputed \
+    --output $ALIGN_FILE \
+    --voxel-size $Y_VOXEL_SIZE \
+    --x-step-size $X_STEP_SIZE \
+    --is-oblique \
+    --n-cores 48 \
+    --sigma 10 \
+    --sample-count 100 \
+    --window-size 51,51,51
+#
+# The calculated Y_VOXEL_SIZE is the voxel_size in the json file
+#
+Y_VOXEL_SIZE=`python -c "import json;print(json.load(open('"$ALIGN_FILE"'))['voxel_size'])"`
 oblique2stitched \
     --input $PWD/"$channel"_destriped_precomputed \
     --output $PWD/"$channel"_destriped_precomputed_stitched \
