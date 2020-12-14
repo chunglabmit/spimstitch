@@ -29,6 +29,7 @@ if [ -z "$USE_WAVELETS" ]; then
   PYSTRIPE_EXTRA_ARGS+=" --sigma1 128 --sigma2 512 --wavelet db5 --crossover 10"
 else
   PYSTRIPE_EXTRA_ARGS+=" --lightsheet"
+fi
 
 set -x
 #
