@@ -6,8 +6,12 @@
 # $X_STEP_SIZE - size of X step in microns
 # $Y_VOXEL_SIZE - size of voxel in the Y direction in microns
 # $Z_OFFSET - the offset in voxels between DCIMG stacks in the Z direction
+# $BACKGROUND - the maximum intensity of background pixels
+# $ILLUM_CORR - the illumination correction file to use. If none, one will be computed
+# $ALIGN_FILE - the file to use to align scan runs. If none, one will be computed.
+#               Subsequent channels should use the first channel's alignment file.
+#
 set -e
-shopt -s expand_aliases
 export channel=$1
 
 if [ -z "$X_STEP_SIZE" ]; then export X_STEP_SIZE=1.28; fi
@@ -110,7 +114,7 @@ done
 #
 # Stitch all of the oblique stacks into a unitary precomputed volume
 #
-if [ $SINGLE_CHANNEL == 0 ]
+if [ $SINGLE_CHANNEL == 0 ] && [ -z ALIGN_FILE ]
 then
 export ALIGN_FILE=$PWD/"$channel"-align.json
 oblique-align \
