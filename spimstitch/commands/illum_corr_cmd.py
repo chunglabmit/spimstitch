@@ -83,13 +83,16 @@ def parse_arguments(args=sys.argv[1:]):
 def do_one_plane(dcimg:DCIMG, idx:int, opts):
     n_bins = opts.n_bins
     values_per_bin = opts.values_per_bin
-    img = np.clip(dcimg.read_frame(idx) // values_per_bin, 0, n_bins-1)
+    img = dcimg.read_frame(idx)
+    mask = (img >= opts.background) & (img < values_per_bin * n_bins)
+    img = np.clip( img // values_per_bin, 0, n_bins-1)
     img = np.rot90(img, k=opts.rotate_90)
     if opts.flip_ud:
         img = np.flipud(img)
     n_slots = np.prod(img.shape)
     return coo_matrix(
-        (np.ones(n_slots, np.uint32), (np.arange(n_slots), img.ravel())),
+        (np.ones(np.sum(mask), np.uint32), (np.arange(n_slots)[mask.ravel()],
+                                       img[mask])),
         shape=(n_slots, n_bins))
 
 
@@ -98,15 +101,17 @@ def main(args=sys.argv[1:]):
     dcimgs = [DCIMG(_) for _ in opts.dcimg]
     cumsum, total = build_histogram(dcimgs, opts)
     image = estimate_correction_image(cumsum, dcimgs, opts, total)
-    tifffile.imsave(opts.output, image)
+    tifffile.imsave(opts.output, image, compress=3)
 
 
 def estimate_correction_image(cumsum, dcimgs, opts, total):
-    qbin = np.argmin(np.abs(cumsum - opts.percentile * total / 100), 2)
+    qbin = np.argmin(np.abs(
+        cumsum - opts.percentile * cumsum[:, :, -1, None] / 100), 2)
     if opts.intermediate_output is not None:
         intermediate = qbin * opts.values_per_bin
         tifffile.imsave(opts.intermediate_output,
-                        intermediate.astype(np.uint16))
+                        intermediate.astype(np.uint16),
+                        compress=3)
     y, x = np.mgrid[0:dcimgs[0].y_dim, 0:dcimgs[0].x_dim]
     mask = (qbin < opts.n_bins-1) & \
            (qbin >= opts.background // opts.values_per_bin)
@@ -148,7 +153,7 @@ def build_histogram(dcimgs, opts):
     cumsum = np.cumsum(accumulator.toarray().reshape(dcimgs[0].y_dim,
                                                      dcimgs[0].x_dim,
                                                      opts.n_bins), axis=2)
-    return cumsum, total
+    return cumsum, n_frames
 
 
 if __name__ == "__main__":
