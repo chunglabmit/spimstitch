@@ -7,28 +7,31 @@
 # $Y_VOXEL_SIZE - size of voxel in the Y direction in microns
 # $Z_OFFSET - the offset in voxels between DCIMG stacks in the Z direction
 set -e
+shopt -s expand_aliases
 export channel=$1
 
 if [ -z "$X_STEP_SIZE" ]; then export X_STEP_SIZE=1.28; fi
 if [ -z "$Y_VOXEL_SIZE" ]; then export Y_VOXEL_SIZE=1.8; fi
 if [ -z "$Z_OFFSET" ]; then export Z_OFFSET=2048; fi
+if [ -z "$BACKGROUND" ]; then export BACKGROUND=100; fi
 if [ -z "$ILLUM_CORR" ]; then
   ILLUM_CORR="$channel"-illuc.tiff
   oblique-illum-corr \
     --output $ILLUM_CORR \
     --n-frames 5000 \
+    --background $BACKGROUND \
     --n-bins 1024 \
     --values-per-bin 4 \
     --rotate-90 3 \
     --flip-ud \
     `find $channel -name "*.dcimg"`
 fi
-PYSTRIPE_EXTRA_ARGS="--flat $ILLUM_CORR --dark 0"
+PYSTRIPE_EXTRA_ARGS="--flat $ILLUM_CORR --dark $BACKGROUND"
 
 if [ -z "$USE_WAVELETS" ]; then
-  PYSTRIPE_EXTRA_ARGS+=" --sigma1 128 --sigma2 512 --wavelet db5 --crossover 10"
-else
   PYSTRIPE_EXTRA_ARGS+=" --lightsheet"
+else
+  PYSTRIPE_EXTRA_ARGS+=" --sigma1 128 --sigma2 512 --wavelet db5 --crossover 10"
 fi
 
 set -x
@@ -51,7 +54,7 @@ do
     # For the x_y coordinate combinations
     do
       for dcimg_path in `ls $channel/$x/$xy/*.dcimg`;
-        do
+      do
   #
   # Cut away the directory
   #
@@ -100,8 +103,8 @@ do
         --input "$channel"_destriped/"$x"/"$xy"/"$z"/"img*.tiff" \
         --output "$PWD"/"$channel"_destriped_precomputed \
         --levels 5
-  fi
-	      done
+	fi
+      done
     done
 done
 #
