@@ -153,7 +153,7 @@ class StitchSrcVolume:
             if x1_relative < z0_relative:
                 return False # top corner of block is below the leading oblique
             # bottom corner of block is above the trailing oblique
-            return self.trailing_oblique_start - x1_relative > z0_relative
+            return self.trailing_oblique_start - x0_relative > z0_relative
         else:
             return True
 

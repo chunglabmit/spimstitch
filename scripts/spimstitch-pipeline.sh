@@ -7,6 +7,7 @@
 # $Y_VOXEL_SIZE - size of voxel in the Y direction in microns
 # $Z_OFFSET - the offset in voxels between DCIMG stacks in the Z direction
 # $BACKGROUND - the maximum intensity of background pixels
+# $USE_WAVELETS - use wavelets for destriping, not lightsheet
 # $ILLUM_CORR - the illumination correction file to use. If none, one will be computed
 # $ALIGN_FILE - the file to use to align scan runs. If none, one will be computed.
 #               Subsequent channels should use the first channel's alignment file.
@@ -114,19 +115,20 @@ done
 #
 # Stitch all of the oblique stacks into a unitary precomputed volume
 #
-if [ $SINGLE_CHANNEL == 0 ] && [ -z ALIGN_FILE ]
-then
-export ALIGN_FILE=$PWD/"$channel"-align.json
-oblique-align \
-    --input $PWD/"$channel"_destriped_precomputed \
-    --output $ALIGN_FILE \
-    --voxel-size $Y_VOXEL_SIZE \
-    --x-step-size $X_STEP_SIZE \
-    --is-oblique \
-    --n-cores 48 \
-    --sigma 10 \
-    --sample-count 100 \
-    --window-size 51,51,51
+if [ $SINGLE_CHANNEL == 0 ]; then
+  if [ -z ALIGN_FILE ]; then
+    export ALIGN_FILE=$PWD/"$channel"-align.json
+    oblique-align \
+      --input $PWD/"$channel"_destriped_precomputed \
+      --output $ALIGN_FILE \
+      --voxel-size $Y_VOXEL_SIZE \
+      --x-step-size $X_STEP_SIZE \
+      --is-oblique \
+      --n-cores 48 \
+      --sigma 10 \
+      --sample-count 100 \
+      --window-size 51,51,51
+  fi
 #
 # The calculated Y_VOXEL_SIZE is the voxel_size in the json file
 #
