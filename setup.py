@@ -32,11 +32,12 @@ setup(
         "oblique-illum-corr=spimstitch.commands.illum_corr_cmd:main",
         "oblique-align=spimstitch.commands.align_cmd:main"
     ]},
-    scripts=["scripts/spimstitch-pipeline.sh"],
+    scripts=["scripts/spimstitch-pipeline.sh",
+             "scripts/nonoblique-pipeline.sh"],
     url="https://github.com/chunglabmit/spimstitch",
     license="MIT",
     classifiers=[
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 4 - Beta",
         'Programming Language :: Python :: 3.5',
     ]
 )
