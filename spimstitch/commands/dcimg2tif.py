@@ -36,6 +36,17 @@ def parse_args(args = sys.argv[1:]):
         "--flip-ud",
         help="Flip in the Y direction after rotating",
         action="store_true")
+    parser.add_argument(
+        "--start",
+        help="Index of first frame to decode",
+        default=0,
+        type=int
+    )
+    parser.add_argument(
+        "--stop",
+        help="Index of last+1 frame to decode. Default is to the end.",
+        type=int
+    )
     return parser.parse_args(args)
 
 
@@ -56,7 +67,9 @@ def main(args=sys.argv[1:]):
         os.makedirs(output_dir)
     with multiprocessing.Pool(opts.n_workers) as pool:
         futures = []
-        for i in range(dcimg.n_frames):
+        start = opts.start
+        stop = opts.stop or dcimg.n_frames
+        for i in range(start, stop):
             output = opts.output_pattern % i
             futures.append(pool.apply_async(
                 write_one, (opts.input, output, i,

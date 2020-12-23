@@ -1,4 +1,5 @@
 numpy
+scipy
 tifffile
 tqdm
 git+git://github.com/chunglabmit/mp_shared_memory#egg=mp_shared_memory
