@@ -116,7 +116,7 @@ done
 # Stitch all of the oblique stacks into a unitary precomputed volume
 #
 if [ $SINGLE_CHANNEL == 0 ]; then
-  if [ -z ALIGN_FILE ]; then
+  if [ -z $ALIGN_FILE ]; then
     export ALIGN_FILE=$PWD/"$channel"-align.json
     oblique-align \
       --input $PWD/"$channel"_destriped_precomputed \
