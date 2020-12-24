@@ -10,7 +10,7 @@ from precomputed_tif.blockfs_stack import BlockfsStack
 from pystripe.core import filter_streaks, correct_lightsheet
 from pystripe.core import normalize_flat, apply_flat
 import sys
-from ..oblique import spim_to_blockfs
+from ..oblique import spim_to_blockfs, get_blockfs_dims
 from ..stack import SpimStack, StackFrame
 from ..dcimg import DCIMG
 
@@ -216,6 +216,11 @@ def main(args=sys.argv[1:]):
     z_extent = int(stop - start)
     paths = [str(i) for i in range(start, stop)]
     stack = SpimStack(paths, 0, 0, x_extent, y_extent, 0)
+    #
+    # The stack dimensions are a little elongated because of the
+    # parallelogram
+    #
+    z_extent, y_extent, x_extent, dtype = get_blockfs_dims(stack)
     bfs_stack = BlockfsStack((z_extent, y_extent, x_extent),
                              MY_OPTS.output)
     bfs_stack.write_info_file(MY_OPTS.levels)
