@@ -71,44 +71,24 @@ do
 	#
 	# Make the directories we will need for X and Y
 	#
-	mkdir -p "$channel"_raw/"$x"/"$xy"/"$z"
-	mkdir -p "$channel"_destriped_precomputed/"$x"/"$xy"/"$z"
+	destriped_precomputed="$channel"_destriped_precomputed/"$x"/"$xy"/"$z"
+	mkdir -p $destriped_precomputed
+	if [ $SINGLE_CHANNEL == 0 ]; then
+	  intermediate_levels=1
+	else
+	  intermediate_levels=5
+	fi
 	#
-	# Convert images from .dcimg format to TIFF
+	# Convert images from .dcimg format to oblique precomputed
 	#
-	dcimg2tif\
-	    --n-workers 24 \
+  dcimg2oblique \
+      --n-writers 11 \
 	    --rotate-90 3 \
 	    --flip-ud \
 	    --input "$dcimg_path" \
-	    --output-pattern "$channel"_raw/"$x"/"$xy"/"$z"/img_%05d.tiff
-	#
-	# Destripe
-	#
-	pystripe \
-	    --input "$channel"_raw/"$x"/"$xy"/"$z" \
-	    --output "$channel"_destriped/"$x"/"$xy"/"$z" \
+	    --output "$destriped_precomputed" \
 	    $PYSTRIPE_EXTRA_ARGS \
-	    --workers 48
-	#
-	# Convert the stack of TIFFs to an oblique blockfs volume
-	#
-	if [ $SINGLE_CHANNEL == 0 ]
-	then
-    stack2oblique \
-        --n-workers 24 \
-        --n-writers 12 \
-        --input "$channel"_destriped/"$x"/"$xy"/"$z"/"img*.tiff" \
-        --output "$PWD"/"$channel"_destriped_precomputed/"$x"/"$xy"/"$z" \
-        --levels 4
-  else
-    stack2oblique \
-        --n-workers 24 \
-        --n-writers 12 \
-        --input "$channel"_destriped/"$x"/"$xy"/"$z"/"img*.tiff" \
-        --output "$PWD"/"$channel"_destriped_precomputed \
-        --levels 5
-	fi
+	    --levels $intermediate_levels
       done
     done
 done
@@ -156,8 +136,6 @@ fi
 #
 # Clean up by deleting all intermediate files
 #
-rm -r "$channel"_raw
-rm -r "$channel"_destriped
 if [ $SINGLE_CHANNEL == 0 ]
 then
   rm -r "$channel"_destriped_precomputed
