@@ -11,7 +11,9 @@ from .pipeline import Resource, Dependent, Pipeline
 DIRECTORY = None
 
 
-def get_blockfs_dims(stack:SpimStack) -> typing.Tuple[int,int,int, np.dtype]:
+def get_blockfs_dims(stack:SpimStack,
+                     x_extent=None,
+                     y_extent=None) -> typing.Tuple[int,int,int, np.dtype]:
     """
     Determine the dimensions of the blockfs directory that will be needed
     to write the given stack
@@ -19,13 +21,18 @@ def get_blockfs_dims(stack:SpimStack) -> typing.Tuple[int,int,int, np.dtype]:
     :param stack: the stack to be written
     :return: a 4-tuple of z extent, y extent and x extent and image dtype
     """
-    sf = StackFrame(stack.paths[0], stack.x0, stack.y0, stack.z0)
-    x_extentish = sf.x1 - sf.x0
-    y_extent = sf.y1 - sf.y0
+    if x_extent is None:
+        x_extentish = x_extent
+        dtype = np.uint16
+    else:
+        sf = StackFrame(stack.paths[0], stack.x0, stack.y0, stack.z0)
+        x_extentish = sf.x1 - sf.x0
+        y_extent = sf.y1 - sf.y0
+        dtype = sf.img.dtype
     z_extentish = len(stack.paths)
     x_extent = x_extentish + z_extentish
     z_extent = x_extentish
-    return z_extent, y_extent, x_extent, sf.img.dtype
+    return z_extent, y_extent, x_extent, dtype
 
 
 READ_FUNCTION_T = typing.Callable[[str], np.ndarray]

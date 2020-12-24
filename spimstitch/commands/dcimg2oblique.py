@@ -220,7 +220,8 @@ def main(args=sys.argv[1:]):
     # The stack dimensions are a little elongated because of the
     # parallelogram
     #
-    z_extent, y_extent, x_extent, dtype = get_blockfs_dims(stack)
+    z_extent, y_extent, x_extent, dtype = get_blockfs_dims(
+        stack, x_extent, y_extent)
     bfs_stack = BlockfsStack((z_extent, y_extent, x_extent),
                              MY_OPTS.output)
     bfs_stack.write_info_file(MY_OPTS.levels)
