@@ -208,9 +208,9 @@ def main(args=sys.argv[1:]):
     if MY_OPTS.flat is not None:
         FLAT = normalize_flat(tifffile.imread(MY_OPTS.flat))
 
+    MY_DCIMG = DCIMG(MY_OPTS.input)
     start = MY_OPTS.start
     stop = MY_OPTS.stop or MY_DCIMG.n_frames
-    MY_DCIMG = DCIMG(MY_OPTS.input)
     x_extent = int(MY_DCIMG.x_dim)
     y_extent = int(MY_DCIMG.y_dim)
     z_extent = stop - start
