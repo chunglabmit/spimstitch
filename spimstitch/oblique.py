@@ -21,7 +21,7 @@ def get_blockfs_dims(stack:SpimStack,
     :param stack: the stack to be written
     :return: a 4-tuple of z extent, y extent and x extent and image dtype
     """
-    if x_extent is None:
+    if x_extent is not None:
         x_extentish = x_extent
         dtype = np.uint16
     else:
