@@ -34,9 +34,9 @@ fi
 PYSTRIPE_EXTRA_ARGS="--flat $ILLUM_CORR --dark $BACKGROUND"
 
 if [ -z "$USE_WAVELETS" ]; then
-  PYSTRIPE_EXTRA_ARGS+=" --lightsheet"
+  PYSTRIPE_EXTRA_ARGS+=" --destripe-method lightsheet"
 else
-  PYSTRIPE_EXTRA_ARGS+=" --sigma1 128 --sigma2 512 --wavelet db5 --crossover 10"
+  PYSTRIPE_EXTRA_ARGS+=" --destripe-method wavelet --sigma1 128 --sigma2 512 --wavelet db5 --crossover 10"
 fi
 
 set -x
@@ -83,6 +83,7 @@ do
 	#
   dcimg2oblique \
       --n-writers 11 \
+      --n-workers 48 \
 	    --rotate-90 3 \
 	    --flip-ud \
 	    --input "$dcimg_path" \
