@@ -11,7 +11,9 @@ from .pipeline import Resource, Dependent, Pipeline
 DIRECTORY = None
 
 
-def get_blockfs_dims(stack:SpimStack) -> typing.Tuple[int,int,int, np.dtype]:
+def get_blockfs_dims(stack:SpimStack,
+                     x_extent=None,
+                     y_extent=None) -> typing.Tuple[int,int,int, np.dtype]:
     """
     Determine the dimensions of the blockfs directory that will be needed
     to write the given stack
@@ -19,23 +21,31 @@ def get_blockfs_dims(stack:SpimStack) -> typing.Tuple[int,int,int, np.dtype]:
     :param stack: the stack to be written
     :return: a 4-tuple of z extent, y extent and x extent and image dtype
     """
-    sf = StackFrame(stack.paths[0], stack.x0, stack.y0, stack.z0)
-    x_extentish = sf.x1 - sf.x0
-    y_extent = sf.y1 - sf.y0
+    if x_extent is not None:
+        x_extentish = x_extent
+        dtype = np.uint16
+    else:
+        sf = StackFrame(stack.paths[0], stack.x0, stack.y0, stack.z0)
+        x_extentish = sf.x1 - sf.x0
+        y_extent = sf.y1 - sf.y0
+        dtype = sf.img.dtype
     z_extentish = len(stack.paths)
     x_extent = x_extentish + z_extentish
     z_extent = x_extentish
-    return z_extent, y_extent, x_extent, sf.img.dtype
+    return z_extent, y_extent, x_extent, dtype
 
 
+READ_FUNCTION_T = typing.Callable[[str], np.ndarray]
 class PlaneR:
 
-    def __init__(self, z, path, shape, dtype):
+    def __init__(self, z:int, path:str, shape:typing.Sequence[int],
+                 dtype:np.dtype, read_fn:READ_FUNCTION_T=tifffile.imread):
         self.z = z
         self.path = path
         self.shape = shape
         self.dtype = dtype
         self.memory = None
+        self.read_fn = read_fn
 
     def prepare(self):
         if self.memory is None:
@@ -43,7 +53,7 @@ class PlaneR:
 
     def read(self):
         with self.memory.txn() as m:
-            m[:] = tifffile.imread(self.path)
+            m[:] = self.read_fn(self.path)
 
 
 class BlockD:
@@ -97,24 +107,25 @@ class BlockD:
                                   self.x0, y0a, self.z0)
 
 
-def make_resources(stack:SpimStack)\
+def make_resources(stack:SpimStack, read_fn:READ_FUNCTION_T=tifffile.imread)\
         -> typing.Sequence[typing.Tuple[Resource, PlaneR]]:
     result = []
-    img = tifffile.imread(stack.paths[0])
+    img = read_fn(stack.paths[0])
     shape = img.shape
     dtype = img.dtype
     for z, path in enumerate(stack.paths):
-        planer = PlaneR(z, path, shape, dtype)
+        planer = PlaneR(z, path, shape, dtype, read_fn)
         resource = Resource(planer.read, "plane %d" % z, planer.prepare)
         result.append((resource, planer))
     return result
 
 
 def spim_to_blockfs(stack:SpimStack, directory:Directory,
-                    n_workers:int):
+                    n_workers:int,
+                    read_fn:READ_FUNCTION_T=tifffile.imread):
     global DIRECTORY
     DIRECTORY = directory
-    dependents = make_s2b_dependents(stack, directory)
+    dependents = make_s2b_dependents(stack, directory, read_fn)
     pipeline = Pipeline(dependents)
     with multiprocessing.Pool(n_workers) as pool:
         pipeline.run(pool)
@@ -122,8 +133,10 @@ def spim_to_blockfs(stack:SpimStack, directory:Directory,
         DIRECTORY = None
 
 
-def make_s2b_dependents(stack:SpimStack, directory:Directory):
-    resources_and_planers = make_resources(stack)
+def make_s2b_dependents(stack:SpimStack,
+                        directory:Directory,
+                        read_fn:READ_FUNCTION_T=tifffile.imread):
+    resources_and_planers = make_resources(stack, read_fn)
     resources, planers = [[_[idx] for _ in resources_and_planers]
                           for idx in (0, 1)]
 

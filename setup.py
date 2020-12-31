@@ -26,6 +26,7 @@ setup(
     packages=["spimstitch", "spimstitch.commands"],
     entry_points={ 'console_scripts': [
         "dcimg2tif=spimstitch.commands.dcimg2tif:main",
+        "dcimg2oblique=spimstitch.commands.dcimg2oblique:main",
         "stack2oblique=spimstitch.commands.stack2oblique:main",
         "oblique2stitched=spimstitch.commands.stitch_cmd:main",
         "nonoblique2stitched=spimstitch.commands.stitch_nonoblique_cmd:main",
