@@ -188,8 +188,9 @@ def do_one(sidx:str) -> np.ndarray:
             dark=MY_OPTS.dark)
     else:
         fimg = img.astype(np.float32)
-    img = np.clip(apply_flat(fimg, FLAT), 0, np.iinfo(np.uint16).max)\
-        .astype(np.uint16)
+    if FLAT is not None:
+        img = apply_flat(fimg, FLAT)
+    img = np.clip(img, 0, np.iinfo(np.uint16).max).astype(np.uint16)
     return img
 
 
