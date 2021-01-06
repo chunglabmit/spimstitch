@@ -1,4 +1,7 @@
 import argparse
+import json
+
+import typing
 from blockfs.directory import  Directory
 import logging
 from precomputed_tif.blockfs_stack import BlockfsStack
@@ -68,6 +71,11 @@ def parse_args(args=sys.argv[1:]):
     parser.add_argument(
         "--output-offset",
         help="Offset of the output volume. Only use with --output-size. ")
+    parser.add_argument(
+        "--alignment",
+        help="Alignment file from oblique-align. Default is use static "
+        "alignment"
+    )
     return parser.parse_args(args)
 
 
@@ -91,6 +99,7 @@ def main(args=sys.argv[1:]):
                         opts.y_voxel_size,
                         z_offset)
         for volume_path, z_offset in zip(volume_paths, z_offsets)]
+    adjust_alignments(opts, volumes)
     StitchSrcVolume.rebase_all(volumes)
     if opts.output_size is None:
         zs, ys, xs = get_output_size(volumes)
@@ -121,6 +130,28 @@ def main(args=sys.argv[1:]):
     directory.close()
     for level in range(2, opts.levels + 1):
         output.write_level_n(level, opts.silent, opts.n_writers)
+
+
+def adjust_alignments(opts, volumes:typing.Sequence[StitchSrcVolume]):
+    """
+    Adjust the volume coordinates based on alignments recorded by
+    oblique-align or similar.
+
+    :param opts: The command-line options - we take the --alignment arg
+    as a json file.
+    :param volumes: The volumes to be adjusted
+    """
+    if opts.alignment is not None:
+        alignments = {}
+        with open(opts.alignment) as fd:
+            d = json.load(fd)
+        if "alignments" in d:
+            for k, v in d["alignments"].items():
+                alignments[tuple(json.loads(k)[:-1])] = v
+        for volume in volumes:
+            k = (volume.x0, volume.y0)
+            if k in alignments:
+                volume.x0, volume.y0, _ = alignments[k]
 
 
 if __name__ == "__main__":
