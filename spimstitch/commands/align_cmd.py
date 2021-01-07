@@ -338,8 +338,43 @@ def main(args=sys.argv[1:]):
             if key not in overlaps:
                 overlaps[key] = []
             overlaps[key].append(context)
+    json_overlaps = make_json_alignment_dict(overlaps, opts)
+    with open(opts.output, "w") as fd:
+        json.dump(json_overlaps, fd, indent=2)
+
+
+def make_json_alignment_dict(overlaps:dict, opts):
+    """
+    Make a json-serializable dictionary for output. The dictionary structure:
+
+    voxel_size - the best guess at the correct voxel size, if we deem the
+                 putative voxel size to be at fault
+
+    voxel_sizes - the voxel sizes calculated from each of the overlaps
+
+    alignments - a dictionary. For each block whose alignment needs to be
+                 corrected, the key is the JSON serializable coordinates
+                 of the block in microns, as given by the file names. The
+                 value is the x, y, z triplet of the calculated true position
+                 of the block in microns.
+
+    other keys are JSON-serializable pairs of triplets giving the two blocks
+    with overlaps. The values of each of these are sequences of dictionaries
+    with keys of:
+
+        xa, ya, za - the global coordinate of a point in the first block
+        xb, yb, zb - the global coordinate of the point as found in the
+                     second block
+        corr - the final Pearson cross-correlation between patches at the
+        two coordinates.
+    :param overlaps: A dictionary of overlaps, similar in structure to the
+                     one serialized above.
+    :param opts: the command-line options
+    :return: a JSON-serializable dictionary as described above.
+    """
     json_overlaps = {}
     est_voxel_sizes = []
+    um_y_offsets = {}
     for key, value in overlaps.items():
         skey = json.dumps(key)
         json_overlaps[skey] = value
@@ -361,11 +396,32 @@ def main(args=sys.argv[1:]):
                 ydist = volume_b.y0 - volume_a.y0
                 yum = ydist / ypix
                 est_voxel_sizes.append(yum)
-
+                um_y_offset = float((ya - yb) * opts.voxel_size)
+                if key_b[1] > key_a[1]:
+                    keyy = key_b[1]
+                else:
+                    keyy = key_a[1]
+                    um_y_offset = -um_y_offset
+                xz_key = (key_a[0], key_a[2])
+                if xz_key not in um_y_offsets:
+                    um_y_offsets[xz_key] = {}
+                if keyy not in um_y_offsets[xz_key]:
+                    um_y_offsets[xz_key][keyy] = []
+                um_y_offsets[xz_key][keyy].append(um_y_offset)
     json_overlaps["voxel_size"] = np.median(est_voxel_sizes)
     json_overlaps["voxel_sizes"] = [float(_) for _ in est_voxel_sizes]
-    with open(opts.output, "w") as fd:
-        json.dump(json_overlaps, fd, indent=2)
+    if len(um_y_offsets) > 0:
+        alignments = {}
+        for xz_key in um_y_offsets:
+            accumulator = 0
+            for y_key in sorted(um_y_offsets[xz_key]):
+                um_y_offset = np.median(um_y_offsets[xz_key][y_key])
+                accumulator += um_y_offset
+                new_y = float(y_key + accumulator)
+                json_key = json.dumps((xz_key[0], y_key, xz_key[1]))
+                alignments[json_key] = (xz_key[0], new_y, xz_key[1])
+    json_overlaps["alignments"] = alignments
+    return json_overlaps
 
 
 if __name__=="__main__":

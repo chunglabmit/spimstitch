@@ -111,12 +111,13 @@ if [ $SINGLE_CHANNEL == 0 ]; then
       --window-size 51,51,51
   fi
 #
-# The calculated Y_VOXEL_SIZE is the voxel_size in the json file
+# Stitch the oblique volumes, using either a pre-existing alignment
+# or the one calculated above.
 #
-Y_VOXEL_SIZE=`python -c "import json;print(json.load(open('"$ALIGN_FILE"'))['voxel_size'])"`
 oblique2stitched \
     --input $PWD/"$channel"_destriped_precomputed \
     --output $PWD/"$channel"_destriped_precomputed_stitched \
+    --alignment $ALIGN_FILE \
     --levels 7 \
     --x-step-size "$X_STEP_SIZE" \
     --y-voxel-size "$Y_VOXEL_SIZE" \
