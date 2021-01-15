@@ -31,7 +31,8 @@ setup(
         "oblique2stitched=spimstitch.commands.stitch_cmd:main",
         "nonoblique2stitched=spimstitch.commands.stitch_nonoblique_cmd:main",
         "oblique-illum-corr=spimstitch.commands.illum_corr_cmd:main",
-        "oblique-align=spimstitch.commands.align_cmd:main"
+        "oblique-align=spimstitch.commands.align_cmd:main",
+        "oblique-deconvolve=spimstitch.commands.deconvolve:main"
     ]},
     scripts=["scripts/spimstitch-pipeline.sh",
              "scripts/nonoblique-pipeline.sh"],
