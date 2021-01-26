@@ -12,6 +12,7 @@ import argparse
 import itertools
 import pathlib
 
+import torch
 import tqdm
 from blockfs.directory import Directory
 import numpy as np
@@ -92,6 +93,19 @@ def parse_args(args:typing.Sequence[str]=sys.argv[1:]):
         default=min(13, multiprocessing.cpu_count()),
         help="# of processes used when writing the blockfs volume"
     )
+    parser.add_argument(
+        "--use-gpu",
+        action="store_true",
+        help="Use GPU for deconvolution."
+    )
+    parser.add_argument(
+        "--n-blocks-per-process",
+        type=int,
+        default=2,
+        help="# of blockfs blocks on a side to process at the same time. "
+        "A larger number amortizes the padding while a smaller number "
+        "conserves memory."
+    )
     return parser.parse_args(args)
 
 
@@ -109,7 +123,8 @@ def kernel_size(power:float, fraction:float=.01) -> int:
     return k_size
 
 
-def do_one(x0:int, y0:int, z0:int, power:float, klen:int, iterations:int):
+def do_one(x0:int, y0:int, z0:int, x1:int, y1:int, z1:int,
+           power:float, klen:int, iterations:int, use_cpu):
     """
     Process one block.
 
@@ -120,14 +135,13 @@ def do_one(x0:int, y0:int, z0:int, power:float, klen:int, iterations:int):
     :param klen: the length of the kernel
     :param iterations: # of iterations in the Richardson / Lucy loop
     """
-    zs, ys, xs = DIRECTORY.get_block_size(x0, y0, z0)
-    x1 = x0 + xs
-    y1 = y0 + ys
-    z1 = z0 + zs
 
-    psf = np.zeros((klen, 1, klen), np.float32)
-    a = np.arange(klen)
-    psf[a, 0, klen-1-a] = np.exp(-np.arange(klen)*power)
+    half = klen // 2
+    #
+    # The convolution we choose puts the image at z=half, x=-half
+    # because it is asymmetric.
+    x_off = -half
+    z_off = half
     x0a = max(x0 - klen, 0)
     x1a = min(x1 + klen, ARRAY_READER.shape[2])
     y0a = y0
@@ -135,19 +149,106 @@ def do_one(x0:int, y0:int, z0:int, power:float, klen:int, iterations:int):
     z0a = max(z0 - klen, 0)
     z1a = min(z1 + klen, ARRAY_READER.shape[0])
     img = ARRAY_READER[z0a:z1a, y0a:y1a, x0a:x1a]
+    #
+    # Make sure we have at least 1/2 of the convolution size of padding,
+    # even if it is all zeros.
+    #
+    if z1a < z1 + half or z0a > z0 - half or \
+       x1a < x1 + half or x0a > x0 - half:
+        padded_img = np.zeros((z1 - z0 + klen * 2,
+                               y1 - y0,
+                               x1 - x0 + klen * 2))
+        z0p = z0a - z0 + klen
+        z1p = z0p + img.shape[0]
+        x0p = x0a - x0 + klen
+        x1p = x0p + img.shape[2]
+        padded_img[z0p:z1p, :, x0p:x1p] = img
+        z0a = z0 - klen
+        z1a = z1 + klen
+        x0a = x0 - klen
+        x1a = x1 + klen
+        img = padded_img
     minimum = np.min(img)
     scale = np.max(img) - np.min(img) + np.finfo(np.float32).eps
     observed = (img.astype(np.float32) - minimum) / scale
+    latent_est = cpu_richardson_lucy(observed, klen, power, iterations)
+    output = (latent_est[z0-z0a+z_off:z1-z0a+z_off,
+                         y0-y0a:y1-y0a,
+                         x0-x0a+x_off:x1-x0a+x_off] *
+        scale + minimum).astype(ARRAY_READER.dtype)
+    write_out(output, x0, x1, y0, y1, z0, z1)
+
+
+def cpu_richardson_lucy(observed, klen, power, iterations):
     latent_est = np.ones_like(observed) / 2
+    a = np.arange(klen)
+    psf = np.zeros((klen, 1, klen), np.float32)
+    psf[a, 0, klen - 1 - a] = np.exp(-np.arange(klen) * power)
     psf_hat = psf[::-1, ::-1, ::-1]
     for _ in range(iterations):
         est_conv = ndimage.convolve(latent_est, psf)
         relative_blur = observed / (est_conv + np.finfo(observed.dtype).eps)
         error_est = ndimage.convolve(relative_blur, psf_hat)
         latent_est = latent_est * error_est
-    output = (latent_est[z0-z0a:z1-z0a, y0-y0a:y1-y0a, x0-x0a:x1-x0a] *
-        scale + minimum).astype(ARRAY_READER.dtype)
-    DIRECTORY.write_block(output, x0, y0, z0)
+    return latent_est
+
+
+def write_out(output, x0, x1, y0, y1, z0, z1):
+    zs, ys, xs = DIRECTORY.get_block_size(x0, y0, z0)
+    xb0s = np.arange(x0, x1, xs)
+    yb0s = np.arange(y0, y1, ys)
+    zb0s = np.arange(z0, z1, zs)
+    for xb0, yb0, zb0 in itertools.product(xb0s, yb0s, zb0s):
+        zs, ys, xs = DIRECTORY.get_block_size(xb0, yb0, zb0)
+        try:
+            DIRECTORY.write_block(output[zb0 - z0:zb0 + zs - z0,
+                                  yb0 - y0:yb0 + ys - y0,
+                                  xb0 - x0:xb0 + xs - x0], xb0, yb0, zb0)
+        except:
+            raise
+
+def pytorch_conv(x, k):
+    ksize = len(k)
+    khalfsize = ksize // 2
+    acc = torch.zeros_like(x)
+    for i in range(-khalfsize, khalfsize+1):
+        x0s = 0
+        x0d = 0
+        z0s = 0
+        z0d = 0
+        x1s = x.shape[2]
+        x1d = x.shape[2]
+        z1s = x.shape[2]
+        z1d = x.shape[2]
+        if i < 0:
+            x0s = x0s - i
+            x1d = x1d + i
+            z0d = z0d - i
+            z1s = z1s + i
+        elif i > 0:
+            x0d = x0d + i
+            x1s = x1s - i
+            z0s = z0s + i
+            z1d = z1d - i
+        try:
+            acc[z0d:z1d, :, x0d:x1d] = acc[z0d:z1d, :, x0d:x1d] + k[khalfsize-i] * x[z0s:z1s, :, x0s:x1s]
+        except:
+            print("%d:%d, %d:%d = %d:%d, %d: %d"% (z0d, z1d, x0d, x1d, z0s, z1s, x0s, x1s))
+            print("Shape: %s" % str(acc[z0d:z1d, :, x0d:x1d].shape))
+            raise
+    return acc
+
+
+def gpu_richardson_lucy(observed, klen, power, iterations):
+    kernel1d = np.exp(-np.arange(klen) * power).astype(np.float32)
+    inv_kernel1d = np.ascontiguousarray(kernel1d[::-1])
+    latent_est = torch.ones_like(observed) / 2
+    for _ in range(iterations):
+        est_conv = pytorch_conv(latent_est, kernel1d)
+        relative_blur = observed / (est_conv + np.finfo(np.float32).eps)
+        error_est = pytorch_conv(relative_blur, inv_kernel1d)
+        latent_est = latent_est * error_est
+    return latent_est.cpu().numpy()
 
 
 def main(args:typing.Sequence[str]=sys.argv[1:]):
@@ -173,16 +274,29 @@ def main(args:typing.Sequence[str]=sys.argv[1:]):
                           n_filenames=opts.n_writers)
     DIRECTORY.create()
     DIRECTORY.start_writer_processes()
-    xr = range(0, DIRECTORY.x_extent, DIRECTORY.x_block_size)
-    yr = range(0, DIRECTORY.y_extent, DIRECTORY.y_block_size)
-    zr = range(0, DIRECTORY.z_extent, DIRECTORY.z_block_size)
+    nblks = opts.n_blocks_per_process
+    xsize = DIRECTORY.x_block_size * nblks
+    ysize = DIRECTORY.y_block_size * nblks
+    zsize = DIRECTORY.z_block_size * nblks
+    xr0 = np.arange(0, DIRECTORY.x_extent, xsize)
+    yr0 = np.arange(0, DIRECTORY.y_extent, ysize)
+    zr0 = np.arange(0, DIRECTORY.z_extent, zsize)
+    xr1 = np.minimum(xr0 + xsize, DIRECTORY.x_extent)
+    yr1 = np.minimum(yr0 + ysize, DIRECTORY.y_extent)
+    zr1 = np.minimum(zr0 + zsize, DIRECTORY.z_extent)
     futures = []
-    with multiprocessing.Pool(opts.n_cores) as pool:
-        for x0, y0, z0 in itertools.product(xr, yr, zr):
+    if opts.use_gpu:
+        cores = 1
+    else:
+        cores = opts.n_cores
+    with multiprocessing.Pool(cores) as pool:
+        for (x0, x1), (y0, y1), (z0, z1) in itertools.product(
+                zip(xr0, xr1), zip(yr0, yr1), zip(zr0, zr1)):
             futures.append(
                 pool.apply_async(
                     do_one,
-                    (x0, y0, z0, opts.power, klen, opts.iterations)))
+                    (x0, y0, z0, x1, y1, z1, opts.power, klen, opts.iterations,
+                     opts.use_gpu)))
 
         for future in tqdm.tqdm(futures,
                                 desc="Writing blocks"):
