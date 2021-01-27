@@ -124,7 +124,7 @@ def kernel_size(power:float, fraction:float=.01) -> int:
 
 
 def do_one(x0:int, y0:int, z0:int, x1:int, y1:int, z1:int,
-           power:float, klen:int, iterations:int, use_cpu):
+           power:float, klen:int, iterations:int, use_gpu):
     """
     Process one block.
 
@@ -171,7 +171,11 @@ def do_one(x0:int, y0:int, z0:int, x1:int, y1:int, z1:int,
     minimum = np.min(img)
     scale = np.max(img) - np.min(img) + np.finfo(np.float32).eps
     observed = (img.astype(np.float32) - minimum) / scale
-    latent_est = cpu_richardson_lucy(observed, klen, power, iterations)
+    if use_gpu:
+        richardson_lucy = gpu_richardson_lucy
+    else:
+        richardson_lucy = cpu_richardson_lucy
+    latent_est = richardson_lucy(observed, klen, power, iterations)
     output = (latent_est[z0-z0a+z_off:z1-z0a+z_off,
                          y0-y0a:y1-y0a,
                          x0-x0a+x_off:x1-x0a+x_off] *
@@ -240,15 +244,17 @@ def pytorch_conv(x, k):
 
 
 def gpu_richardson_lucy(observed, klen, power, iterations):
-    kernel1d = np.exp(-np.arange(klen) * power).astype(np.float32)
-    inv_kernel1d = np.ascontiguousarray(kernel1d[::-1])
-    latent_est = torch.ones_like(observed) / 2
-    for _ in range(iterations):
-        est_conv = pytorch_conv(latent_est, kernel1d)
-        relative_blur = observed / (est_conv + np.finfo(np.float32).eps)
-        error_est = pytorch_conv(relative_blur, inv_kernel1d)
-        latent_est = latent_est * error_est
-    return latent_est.cpu().numpy()
+    with torch.no_grad():
+        observed = torch.Tensor(observed).cuda()
+        kernel1d = np.exp(-np.arange(klen) * power).astype(np.float32)
+        inv_kernel1d = np.ascontiguousarray(kernel1d[::-1])
+        latent_est = torch.ones_like(observed) / 2
+        for _ in range(iterations):
+            est_conv = pytorch_conv(latent_est, kernel1d)
+            relative_blur = observed / (est_conv + np.finfo(np.float32).eps)
+            error_est = pytorch_conv(relative_blur, inv_kernel1d)
+            latent_est = latent_est * error_est
+        return latent_est.cpu().numpy()
 
 
 def main(args:typing.Sequence[str]=sys.argv[1:]):
