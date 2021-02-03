@@ -378,3 +378,43 @@ where
 * **min-correlation** is the minimum allowed Pearson correlation
   coefficient. All estimates whose correlation coefficient is below
   this value are discarded. The default is .95.
+  
+## oblique-deskew
+
+This command adjusts for large differences between x-step-size (times sqrt(2))
+and y-voxel-size. *oblique2stitched* will build a volume whose X-Z plane is
+square, even though the data shape is a parallelogram, resulting in a lengthening
+along the X-Z axis and a truncation along the X+Z axis. *oblique-deskew* builds
+a new volume with this truncation corrected.
+
+Usage:
+```bash
+oblique-deskew \
+    --input <input-path> \
+    --output <output-path> \
+    --x-step-size <x-step-size> \
+    --y-voxel-size <y-voxel-size> \
+    [--levels <levels>] \
+    [--n-cores <n-cores>] \
+    [--n-writers <n-writers>]
+```
+
+where
+
+* *input-path* is the path to the precomputed volume, e.g. as output by
+  *oblique2stitched*
+  
+* *output-path* is the path to the blockfs Neuroglancer volume to be created.
+
+* *x-step-size* is the stepper size in the X direction in microns
+
+* *y-voxel-size* is the size of a pixel on the camera in microns
+
+* *levels* is the number of pyramid levels to be written to the output. The
+  default is 5.
+  
+* *n-cores* is the number of cores to use to read and assemble blocks. The default
+  is the number of CPUs in the server
+  
+* *n-writers* is the number of writer processes to use when writing the output.
+  The default is either 11 or the number of CPUs, whichever is lower.
