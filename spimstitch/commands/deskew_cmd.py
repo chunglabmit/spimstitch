@@ -211,9 +211,9 @@ def main(args:typing.Sequence[str]=sys.argv[1:]):
     # Get the blockfs destination started
     #
     blockfs_stack = BlockfsStack(output_shape, opts.output)
-    voxel_size = (1000. * x_step_size * np.sqrt(2),
+    voxel_size = (1000. * x_step_size ,
                   1000. * y_voxel_size,
-                  1000. * x_step_size * np.sqrt(2))
+                  1000. * x_step_size )
     blockfs_stack.write_info_file(opts.levels, voxel_size)
     bfs_level1_dir = \
         pathlib.Path(opts.output) / "1_1_1" / BlockfsStack.DIRECTORY_FILENAME
