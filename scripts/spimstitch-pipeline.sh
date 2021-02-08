@@ -71,13 +71,14 @@ do
 	#
 	# Make the directories we will need for X and Y
 	#
-	destriped_precomputed="$channel"_destriped_precomputed/"$x"/"$xy"/"$z"
-	mkdir -p $destriped_precomputed
 	if [ $SINGLE_CHANNEL == 0 ]; then
+  	destriped_precomputed="$channel"_destriped_precomputed/"$x"/"$xy"/"$z"
 	  intermediate_levels=1
 	else
 	  intermediate_levels=5
+	  destriped_precomputed="$channel"_destriped_precomputed_stitched
 	fi
+	mkdir -p $destriped_precomputed
 	#
 	# Convert images from .dcimg format to oblique precomputed
 	#
@@ -124,17 +125,13 @@ oblique2stitched \
     --z-offset "$Z_OFFSET" \
     --n-writers 11 \
     --n-workers 24
+fi
 #
 # Convert the precomputed volume's level 1 blockfs to TIFFs
 #
 blockfs2tif \
     --input "$channel"_destriped_precomputed_stitched/1_1_1/precomputed.blockfs \
     --output-pattern "$channel"_destriped_stitched/img_%04d.tiff
-else
-  blockfs2tif \
-    --input "$channel"_destriped_precomputed/1_1_1/precomputed.blockfs \
-    --output-pattern "$channel"_destriped_stitched/img_%04d.tiff
-fi
 #
 # Clean up by deleting all intermediate files
 #
