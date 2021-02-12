@@ -81,14 +81,13 @@ do
 	mkdir -p $destriped_precomputed
 	#
 	# Convert images from .dcimg format to oblique precomputed
-	#
   dcimg2oblique \
       --n-writers 11 \
       --n-workers 48 \
 	    --rotate-90 3 \
 	    --flip-ud \
 	    --input "$dcimg_path" \
-	    --output "$destriped_precomputed" \
+	    --output $PWD/"$destriped_precomputed" \
 	    $PYSTRIPE_EXTRA_ARGS \
 	    --levels $intermediate_levels
       done

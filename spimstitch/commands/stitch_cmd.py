@@ -1,6 +1,6 @@
 import argparse
 import json
-
+import numpy as np
 import typing
 from blockfs.directory import  Directory
 import logging
@@ -76,6 +76,12 @@ def parse_args(args=sys.argv[1:]):
         help="Alignment file from oblique-align. Default is use static "
         "alignment"
     )
+    parser.add_argument(
+        "--y-illum-corr",
+        help="Fractional brightness of y[2047] with respect to y[0] for "
+        "each subvolume. Default is properly corrected",
+        type=float
+    )
     return parser.parse_args(args)
 
 
@@ -84,6 +90,13 @@ def main(args=sys.argv[1:]):
     logging.basicConfig(level=getattr(logging,opts.log_level))
     volume_paths = []
     zs = []
+
+    if opts.y_illum_corr is not None:
+        y_illum_corr = \
+            (1 - opts.y_illum_corr) * (2047 - np.arange(2048)) / 2047 + \
+            opts.y_illum_corr
+    else:
+        y_illum_corr = None
 
     for root, folders, files in os.walk(opts.input, followlinks=True):
         if os.path.split(root)[-1] == "1_1_1":
@@ -126,7 +139,8 @@ def main(args=sys.argv[1:]):
                           n_filenames=opts.n_writers)
     directory.create()
     directory.start_writer_processes()
-    run(volumes, directory, x0, y0, z0, opts.n_workers, opts.silent)
+    run(volumes, directory, x0, y0, z0, opts.n_workers, opts.silent,
+        y_illum_corr)
     directory.close()
     for level in range(2, opts.levels + 1):
         output.write_level_n(level, opts.silent, opts.n_writers)
