@@ -496,6 +496,10 @@ VOLUMES:typing.Dict[uuid.UUID, StitchSrcVolume] = None
 # The output volume directory goes here
 OUTPUT:Directory = None
 
+
+Y_ILLUM_CORR:np.ndarray = None
+
+
 def set_volumes_and_output(volumes, output):
     global VOLUMES, OUTPUT
     VOLUMES=volumes
@@ -513,6 +517,7 @@ def do_block(x0: int, y0:int, z0: int, x0g:int, y0g:int, z0g:int):
     elif len(volumes) == 1:
         volume = volumes[0]
         block = volume.read_block(x0, x1, y0, y1, z0, z1)
+        block = illum_correct(block, volume, y0, y1)
     else:
         block = np.zeros((z1-z0, y1-y0, x1-x0), OUTPUT.dtype)
         distances = [volume.distance_to_edge(x0, x1, y0, y1, z0, z1)
@@ -521,6 +526,7 @@ def do_block(x0: int, y0:int, z0: int, x0g:int, y0g:int, z0g:int):
                  for volume in volumes]
         for volume, (dz, dy, dx), mask in zip(volumes, distances, masks):
             vblock = volume.read_block(x0, x1, y0, y1, z0, z1)
+            vblock = illum_correct(vblock, volume, y0, y1)
             fraction = volume.get_mask(x0, x1, y0, y1, z0, z1).astype(float)
             for idx in [_ for _ in range(len(volumes))
                         if volumes[_].key != volume.key]:
@@ -548,6 +554,29 @@ def do_block(x0: int, y0:int, z0: int, x0g:int, y0g:int, z0g:int):
     OUTPUT.write_block(block, x0-x0g, y0-y0g, z0-z0g)
 
 
+def illum_correct(vblock, volume, y0, y1):
+    y0_local = y0 - volume.y0_global
+    y1_local = y1 - volume.y0_global
+    if y0_local < 0:
+        y0a = -y0_local
+        y0_local = 0
+    elif y0_local > len(Y_ILLUM_CORR):
+        return vblock
+    else:
+        y0a = 0
+    if y1_local > len(Y_ILLUM_CORR):
+        y1a = len(Y_ILLUM_CORR) - y1_local
+        y1_local = len(Y_ILLUM_CORR)
+    elif y1_local <= 0:
+        return vblock
+    else:
+        y1a = vblock.shape[1]
+    vblock[:, y0a:y1a] = \
+        (vblock[:, y0a:y1a] * Y_ILLUM_CORR[y0_local:y1_local]
+         .reshape(1, -1, 1)).astype(vblock.dtype)
+    return vblock
+
+
 def get_output_size(volumes:typing.Sequence[StitchSrcVolume])\
         -> typing.Tuple[int, int, int]:
     """
@@ -572,10 +601,13 @@ def get_output_size(volumes:typing.Sequence[StitchSrcVolume])\
 
 def run(volumes:typing.Sequence[StitchSrcVolume], output: Directory,
         x0g:int, y0g:int, z0g:int,
-        n_workers:int, silent=False):
-    global VOLUMES, OUTPUT, OFFSET
+        n_workers:int, silent=False, y_illum_corr=None):
+    global VOLUMES, OUTPUT, OFFSET, Y_ILLUM_CORR
     VOLUMES = volumes
     OUTPUT = output
+    if y_illum_corr is None:
+        y_illum_corr = np.ones(2048)
+    Y_ILLUM_CORR = y_illum_corr
     xr = range(x0g, x0g + output.x_extent, output.x_block_size)
     yr = range(y0g, y0g + output.y_extent, output.y_block_size)
     zr = range(z0g, z0g + output.z_extent, output.z_block_size)
@@ -587,7 +619,8 @@ def run(volumes:typing.Sequence[StitchSrcVolume], output: Directory,
                     pool.apply_async(do_block, (x0, y0, z0, x0g, y0g, z0g)))
 
             for future in tqdm.tqdm(futures,
-                                    desc="Writing blocks"):
+                                    desc="Writing blocks",
+                                    disable=silent):
                 future.get()
             OUTPUT.close()
     else:
