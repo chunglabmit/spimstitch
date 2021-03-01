@@ -1,3 +1,4 @@
+glymur
 numpy
 scipy
 tifffile

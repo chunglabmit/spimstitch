@@ -7,6 +7,7 @@ with open("./README.md") as fd:
 
 install_requires = [
         "blockfs",
+        "glymur",
         "mp_shared_memory",
         "numpy",
         "precomputed-tif",
@@ -26,6 +27,7 @@ setup(
     packages=["spimstitch", "spimstitch.commands"],
     entry_points={ 'console_scripts': [
         "dcimg2tif=spimstitch.commands.dcimg2tif:main",
+        "dcimg2jp2=spimstitch.commands.dcimg2jp2_cmd:main",
         "dcimg2oblique=spimstitch.commands.dcimg2oblique:main",
         "stack2oblique=spimstitch.commands.stack2oblique:main",
         "oblique2stitched=spimstitch.commands.stitch_cmd:main",
