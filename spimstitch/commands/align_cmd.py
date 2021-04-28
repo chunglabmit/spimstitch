@@ -420,7 +420,7 @@ def make_json_alignment_dict(overlaps:dict, opts):
                 new_y = float(y_key + accumulator)
                 json_key = json.dumps((xz_key[0], y_key, xz_key[1]))
                 alignments[json_key] = (xz_key[0], new_y, xz_key[1])
-    json_overlaps["alignments"] = alignments
+        json_overlaps["alignments"] = alignments
     return json_overlaps
 
 

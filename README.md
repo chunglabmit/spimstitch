@@ -115,6 +115,36 @@ where
 * **stop** One past the last frame to be extracted. Defaults to
   the number of frames in the .dcimg file.
   
+### dcimg2jp2
+
+The dcimg2jp2 command converts a dcimg file to a stack of JPEG 2000 files.
+
+Usage:
+
+```shell
+dcimg2jp2 \
+  --input <dcimg-file> \
+  --output-pattern <output-pattern> \
+  [--n-workers <n-workers>] \
+  [--psnr <psnr>]  
+```
+
+where:
+
+* **input** is the path to the DCIMG file to be converted
+
+* **output-pattern** is the pattern for the JPEG 2000 files to be created.
+  *dcimg2jp2* will create one level of directories if needed. Example:
+  /path/to/img_%05d.jp2
+  
+* **n-workers** is the number of worker processes that will be used. Default
+  is to use all cores
+  
+* **psnr** is a comma-separatedlist of signal-to-noise ratios for the levels in DB. The default
+  is "30,40,50,60,70,80". End the list with "0" if you want lossless
+  compression. A higher number will result in less compression, but higher
+  fidelity.
+  
 ### stack2oblique
 
 The stack2oblique command converts a stack of .tiff files to

@@ -1,6 +1,7 @@
 import argparse
-import enum
 import multiprocessing
+import glob
+import glymur
 import os
 
 import numpy as np
@@ -11,7 +12,7 @@ from pystripe.core import filter_streaks, correct_lightsheet
 from pystripe.core import normalize_flat, apply_flat
 import sys
 from ..oblique import spim_to_blockfs, get_blockfs_dims
-from ..stack import SpimStack, StackFrame
+from ..stack import SpimStack
 from ..dcimg import DCIMG
 
 
@@ -150,6 +151,11 @@ def parse_args(args=sys.argv[1:]):
              "lightsheet against background",
         type=float,
         default=2.0)
+    parser.add_argument(
+        "--jp2k",
+        help="Interpret the input as a glob expression for JPEG 2000 files",
+        action="store_true"
+    )
     return parser.parse_args(args)
 
 
@@ -157,8 +163,18 @@ MY_DCIMG:DCIMG = None
 MY_OPTS = None
 FLAT:np.ndarray = None
 
-def do_one(sidx:str) -> np.ndarray:
+def do_one_dcimg(sidx:str) -> np.ndarray:
     img = MY_DCIMG.read_frame(int(sidx))
+    img = do_one(img)
+    return img
+
+
+def do_one_jp2000(path:str) -> np.ndarray:
+    img = glymur.Jp2k(path)[:]
+    return do_one(img)
+
+
+def do_one(img):
     img = np.rot90(img, MY_OPTS.rotate_90)
     if MY_OPTS.flip_ud:
         img = np.flipud(img)
@@ -209,13 +225,20 @@ def main(args=sys.argv[1:]):
     if MY_OPTS.flat is not None:
         FLAT = normalize_flat(tifffile.imread(MY_OPTS.flat))
 
-    MY_DCIMG = DCIMG(MY_OPTS.input)
-    start = MY_OPTS.start
-    stop = MY_OPTS.stop or MY_DCIMG.n_frames
-    x_extent = int(MY_DCIMG.x_dim)
-    y_extent = int(MY_DCIMG.y_dim)
-    z_extent = int(stop - start)
-    paths = [str(i) for i in range(start, stop)]
+    if MY_OPTS.jp2k:
+        paths=sorted(glob.glob(MY_OPTS.input))
+        fn = do_one_jp2000
+        img = glymur.Jp2k(paths[0])
+        x_extent = img.shape[1]
+        y_extent = img.shape[0]
+    else:
+        MY_DCIMG = DCIMG(MY_OPTS.input)
+        start = MY_OPTS.start
+        stop = MY_OPTS.stop or MY_DCIMG.n_frames
+        x_extent = int(MY_DCIMG.x_dim)
+        y_extent = int(MY_DCIMG.y_dim)
+        paths = [str(i) for i in range(start, stop)]
+        fn = do_one_dcimg
     stack = SpimStack(paths, 0, 0, x_extent, y_extent, 0)
     #
     # The stack dimensions are a little elongated because of the
@@ -239,7 +262,7 @@ def main(args=sys.argv[1:]):
     directory.create()
     directory.start_writer_processes()
     spim_to_blockfs(stack, directory, MY_OPTS.n_workers,
-                    read_fn=do_one)
+                    read_fn=fn)
     for level in range(2, MY_OPTS.levels+1):
         bfs_stack.write_level_n(level, n_cores=MY_OPTS.n_writers)
 
