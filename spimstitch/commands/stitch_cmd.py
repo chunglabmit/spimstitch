@@ -90,9 +90,13 @@ def main(args=sys.argv[1:]):
             for file in files:
                 if file == BlockfsStack.DIRECTORY_FILENAME:
                     volume_paths.append(os.path.join(root, file))
-                    zs.append(os.path.split(os.path.dirname(root))[1])
+                    try:
+                        zs.append(int(os.path.split(os.path.dirname(root))[1]))
+                    except ValueError:
+                        logging.warning(
+                            "Non-numeric Z found in stack path: %s" % root)
     all_z = sorted(set(zs))
-    z_offsets = [opts.z_offset * all_z.index(z) for z in zs]
+    z_offsets = [opts.z_offset * all_z.index(z) * opts.x_step_size for z in zs]
     volumes = [
         StitchSrcVolume(volume_path,
                         opts.x_step_size,

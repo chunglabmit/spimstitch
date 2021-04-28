@@ -38,6 +38,7 @@ setup(
         "oblique-deskew=spimstitch.commands.deskew_cmd:main"
     ]},
     scripts=["scripts/spimstitch-pipeline.sh",
+             "scripts/jp2k-spimstitch-pipeline.sh",
              "scripts/nonoblique-pipeline.sh"],
     url="https://github.com/chunglabmit/spimstitch",
     license="MIT",
