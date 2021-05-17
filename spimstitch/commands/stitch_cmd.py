@@ -116,8 +116,8 @@ def main(args=sys.argv[1:]):
                         opts.y_voxel_size,
                         z_offset)
         for volume_path, z_offset in zip(volume_paths, z_offsets)]
-    adjust_alignments(opts, volumes)
-    StitchSrcVolume.rebase_all(volumes)
+    z_too = adjust_alignments(opts, volumes)
+    StitchSrcVolume.rebase_all(volumes, z_too=z_too)
     if opts.output_size is None:
         zs, ys, xs = get_output_size(volumes)
         x0 = y0 = z0 = 0
@@ -162,14 +162,19 @@ def adjust_alignments(opts, volumes:typing.Sequence[StitchSrcVolume]):
     if opts.alignment is not None:
         alignments = {}
         with open(opts.alignment) as fd:
-            d = json.load(fd)
+            d:dict = json.load(fd)
         if "alignments" in d:
             for k, v in d["alignments"].items():
                 alignments[tuple(json.loads(k)[:-1])] = v
+        align_z = d.get("align-z", False)
         for volume in volumes:
             k = (volume.x0, volume.y0)
             if k in alignments:
-                volume.x0, volume.y0, _ = alignments[k]
+                if align_z:
+                    volume.x0, volume.y0, volume.z0 = alignments[k]
+                else:
+                    volume.x0, volume.y0, _ = alignments[k]
+        return align_z
 
 
 if __name__ == "__main__":
