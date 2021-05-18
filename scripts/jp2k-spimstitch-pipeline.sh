@@ -13,6 +13,7 @@
 # $ILLUM_CORR - the illumination correction file to use. If none, one will be computed
 # $ALIGN_FILE - the file to use to align scan runs. If none, one will be computed.
 #               Subsequent channels should use the first channel's alignment file.
+# $DONT_CLEANUP_INTERMEDIATES - if this is 1, then we keep the stack neuroglancer volumes
 #
 set -e
 export channel=$1
@@ -23,6 +24,7 @@ if [ -z "$Z_OFFSET" ]; then export Z_OFFSET=2048; fi
 if [ -z "$BACKGROUND" ]; then export BACKGROUND=100; fi
 if [ -z "$PSNR" ]; then export PSNR=80; fi
 if [ -z "$WORKERS" ]; then export WORKERS=48; fi
+if [ -z "$DONT_CLEANUP_INTERMEDIATES" ]; then export CLEANUP_INTERMEDIATES=1; fi
 if [ -z "$ILLUM_CORR" ]; then
   ILLUM_CORR="$channel"-illuc.tiff
   oblique-illum-corr \
@@ -165,6 +167,8 @@ blockfs2jp2k \
 #
 if [ $SINGLE_CHANNEL == 0 ]
 then
-  rm -r "$channel"_destriped_precomputed
+  if [ -z "$DONT_CLEANUP_INTERMEDIATES" ]; then
+    rm -r "$channel"_destriped_precomputed
+  fi
 fi
 
