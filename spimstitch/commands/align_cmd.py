@@ -88,6 +88,11 @@ def parse_args(args=sys.argv[1:]):
         type=float,
         default=.95
     )
+    parser.add_argument(
+        "--align-xz",
+        help="Adjust X and Z alignments as well as y",
+        action="store_true"
+    )
     return parser.parse_args(args)
 
 
@@ -375,6 +380,9 @@ def make_json_alignment_dict(overlaps:dict, opts):
     json_overlaps = {}
     est_voxel_sizes = []
     um_y_offsets = {}
+    um_x_offsets = {}
+    um_z_offsets = {}
+    xz_pix_size = opts.voxel_size / np.sqrt(2)
     for key, value in overlaps.items():
         skey = json.dumps(key)
         json_overlaps[skey] = value
@@ -397,30 +405,49 @@ def make_json_alignment_dict(overlaps:dict, opts):
                 yum = ydist / ypix
                 est_voxel_sizes.append(yum)
                 um_y_offset = float((ya - yb) * opts.voxel_size)
+                um_x_offset = float((d["xa"] - d["xb"]) * xz_pix_size)
+                um_z_offset = float((d["za"] - d["zb"]) * xz_pix_size)
                 if key_b[1] > key_a[1]:
                     keyy = key_b[1]
                 else:
                     keyy = key_a[1]
+                    um_x_offset = -um_x_offset
                     um_y_offset = -um_y_offset
+                    um_z_offset = -um_z_offset
                 xz_key = (key_a[0], key_a[2])
-                if xz_key not in um_y_offsets:
-                    um_y_offsets[xz_key] = {}
-                if keyy not in um_y_offsets[xz_key]:
-                    um_y_offsets[xz_key][keyy] = []
-                um_y_offsets[xz_key][keyy].append(um_y_offset)
+                for d, v in ((um_x_offsets, um_x_offset),
+                             (um_y_offsets, um_y_offset),
+                             (um_z_offsets, um_z_offset)):
+                    if xz_key not in d:
+                        d[xz_key] = {}
+                    if keyy not in d[xz_key]:
+                        d[xz_key][keyy] = []
+                    d[xz_key][keyy].append(v)
     json_overlaps["voxel_size"] = np.median(est_voxel_sizes)
     json_overlaps["voxel_sizes"] = [float(_) for _ in est_voxel_sizes]
     if len(um_y_offsets) > 0:
         alignments = {}
         for xz_key in um_y_offsets:
-            accumulator = 0
-            for y_key in sorted(um_y_offsets[xz_key]):
-                um_y_offset = np.median(um_y_offsets[xz_key][y_key])
-                accumulator += um_y_offset
-                new_y = float(y_key + accumulator)
+            for y_key in um_y_offsets[xz_key]:
                 json_key = json.dumps((xz_key[0], y_key, xz_key[1]))
-                alignments[json_key] = (xz_key[0], new_y, xz_key[1])
+                alignments[json_key] = [xz_key[0], y_key, xz_key[1]]
+        for xz_key in um_y_offsets:
+            alignment = []
+            for i, offsets in enumerate((
+                    um_x_offsets, um_y_offsets, um_z_offsets)):
+                if (not opts.align_xz) and i != 1:
+                    continue
+                accumulator = 0
+                for y_key in sorted(offsets[xz_key]):
+                    key = [xz_key[0], y_key, xz_key[1]]
+                    offset = np.median(offsets[xz_key][y_key])
+                    accumulator += offset
+                    new_value = float(key[i] + accumulator)
+                    json_key = json.dumps(key)
+                    alignments[json_key][i] = new_value
         json_overlaps["alignments"] = alignments
+    if opts.align_xz:
+        json_overlaps["align-z"] = True
     return json_overlaps
 
 

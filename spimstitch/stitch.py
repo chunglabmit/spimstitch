@@ -8,7 +8,7 @@ import os
 import tqdm
 import typing
 import uuid
-
+from sklearn.linear_model import RANSACRegressor
 from scipy import ndimage
 
 
@@ -175,6 +175,19 @@ class StitchSrcVolume:
         z0i = max(self.z0_global, other.z0_global)
         z1i = min(self.z1_global, other.z1_global)
         return (z0i, y0i, x0i), (z1i, y1i, x1i)
+
+    def volume_does_overlap(self, other:"StitchSrcVolume") -> bool:
+        """
+        Return true if another volume overlaps this one
+        :param other:
+        :return:
+        """
+        return self.x0_global < other.x1_global and \
+               self.x1_global > other.x0_global and \
+               self.y0_global < other.y1_global and \
+               self.y1_global > other.y0_global and \
+               self.z0_global < other.z1_global and \
+               self.z1_global > other.z0_global
 
     def is_inside(self, x0: int, x1: int, y0: int, y1: int, z0: int, z1: int)\
             -> bool:
@@ -470,6 +483,79 @@ class StitchSrcVolume:
         return self.read_block(x0a, x1a, y0a, y1a, z0a, z1a),\
                (x0a, x1a, y0a, y1a, z0a, z1a)
 
+    @staticmethod
+    def compute_illum_corr(volumes:typing.Sequence["StitchSrcVolume"],
+                           n_patches:int,
+                           min_mean:int,
+                           min_corr_coef:float,
+                           n_workers:int) -> float:
+        """
+
+        :param volumes: a sequence of StitchSrcVolumes where the overlaps
+        will be found
+        :param n_patches: # of patches to take
+        :param min_mean: ignore a patch if the mean value falls below this #
+        :param min_corr_coef: ignore a patch if the Pearson correlation
+        coefficient between the two volumes is less than this.
+        :param n_workers: number of processes to use
+        :return: the ratio between intensity in the upper and lower stacks
+        """
+        overlap_pairs = []
+        for i in range(len(volumes) - 1):
+            for j in range(i+1, len(volumes)):
+                vi:StitchSrcVolume = volumes[i]
+                vj:StitchSrcVolume = volumes[j]
+                if vi.volume_does_overlap(vj):
+                    if vi.y0_global < vj.y0_global:
+                        overlap_pairs.append((vi, vj))
+                    else:
+                        overlap_pairs.append((vj, vi))
+        r = np.random.RandomState(1234)
+        with multiprocessing.Pool(n_workers) as pool:
+            futures = []
+            for _ in range(n_patches):
+                vi, vj = overlap_pairs[r.randint(0, len(overlap_pairs))]
+                x = r.randint(vi.directory.x_extent // 5,
+                              4 * vi.directory.x_extent // 5)
+                z = r.randint(vi.directory.z_extent // 5,
+                              4 * vi.directory.z_extent // 5)
+                futures.append(pool.apply_async(
+                    StitchSrcVolume.compute_illum_corr_patch,
+                    (vi, vj, x, z, min_mean, min_corr_coef)))
+            values = []
+            for future in tqdm.tqdm(futures, desc="Computing illum corr"):
+                value = future.get()
+                if value is not None:
+                    values.append(value)
+        if len(values) == 0:
+            return None
+        return np.median(values)
+
+    @staticmethod
+    def compute_illum_corr_patch(vi:"StitchSrcVolume",
+                                 vj:"StitchSrcVolume",
+                                 x:int,
+                                 z:int,
+                                 min_mean:int,
+                                 min_corr_coef:float) -> float:
+        x0 = x - 32
+        x1 = x + 32
+        y0 = vj.y0_global
+        y1 = vi.y1_global
+        z0 = z - 32
+        z1 = z + 32
+        pi = vi.read_block(x0, x1, y0, y1, z0, z1)
+        if np.mean(pi) < min_mean:
+            return
+        pj = vj.read_block(x0, x1, y0, y1, z0, z1)
+        if np.mean(pj) < min_mean:
+            return
+        corr_coef = np.corrcoef(pi.flatten(), pj.flatten())[0, 1]
+        if corr_coef < min_corr_coef:
+            return
+        model = RANSACRegressor(min_samples=50, random_state=1234)
+        model.fit(pi.flatten().reshape(-1, 1), pj.flatten())
+        return model.estimator_.coef_[0]
 
 def compute_pearson_gradient(fixed:np.ndarray, moving:np.ndarray)->np.ndarray:
     """

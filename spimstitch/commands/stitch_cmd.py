@@ -82,6 +82,34 @@ def parse_args(args=sys.argv[1:]):
         "each subvolume. Default is properly corrected",
         type=float
     )
+    parser.add_argument(
+        "--compute-y-illum-corr",
+        help="If present, compute fractional brightness at overlaps "
+        "between volumes",
+        action="store_true"
+    )
+    parser.add_argument(
+        "--n-y-illum-patches",
+        help="Number of patches to take to compute the y illumination "
+             "correction",
+        type=int,
+        default=1000
+    )
+    parser.add_argument(
+        "--min-y-illum-mean",
+        help="For an illum patch, the minimum allowed value of the mean "
+             "intensity of the patch",
+        type=int,
+        default=100
+    )
+    parser.add_argument(
+        "--min-y-illum-corr-coef",
+        help="The two overlapping volumes in an illumination patch must "
+             "have at least this correlation coefficient "
+             "(0 <= min-y-illum-corr-coef < 1) to be included",
+        type=float,
+        default=.80
+    )
     return parser.parse_args(args)
 
 
@@ -90,13 +118,6 @@ def main(args=sys.argv[1:]):
     logging.basicConfig(level=getattr(logging,opts.log_level))
     volume_paths = []
     zs = []
-
-    if opts.y_illum_corr is not None:
-        y_illum_corr = \
-            (1 - opts.y_illum_corr) * (2047 - np.arange(2048)) / 2047 + \
-            opts.y_illum_corr
-    else:
-        y_illum_corr = None
 
     for root, folders, files in os.walk(opts.input, followlinks=True):
         if os.path.split(root)[-1] == "1_1_1":
@@ -118,6 +139,23 @@ def main(args=sys.argv[1:]):
         for volume_path, z_offset in zip(volume_paths, z_offsets)]
     z_too = adjust_alignments(opts, volumes)
     StitchSrcVolume.rebase_all(volumes, z_too=z_too)
+    if opts.compute_y_illum_corr:
+        y_illum_corr = StitchSrcVolume.compute_illum_corr(
+            volumes,
+            n_patches=opts.n_y_illum_patches,
+            min_mean=opts.min_y_illum_mean,
+            min_corr_coef=opts.min_y_illum_corr_coef,
+            n_workers=opts.n_workers
+        )
+    elif opts.y_illum_corr is not None:
+        y_illum_corr = opts.y_illum_corr
+    else:
+        y_illum_corr = None
+    if y_illum_corr is not None:
+        y_illum_corr = \
+            (1 - y_illum_corr) * (2047 - np.arange(2048)) / 2047 + \
+            y_illum_corr
+
     if opts.output_size is None:
         zs, ys, xs = get_output_size(volumes)
         x0 = y0 = z0 = 0

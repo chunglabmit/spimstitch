@@ -12,6 +12,7 @@ install_requires = [
         "numpy",
         "precomputed-tif",
         "scipy",
+        "sklearn",
         "tifffile",
         "tqdm"
     ]

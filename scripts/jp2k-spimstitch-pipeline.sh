@@ -14,6 +14,7 @@
 # $ALIGN_FILE - the file to use to align scan runs. If none, one will be computed.
 #               Subsequent channels should use the first channel's alignment file.
 # $DONT_CLEANUP_INTERMEDIATES - if this is 1, then we keep the stack neuroglancer volumes
+# $ALIGN_XZ - if this is defined, then we allow alignment adjustment of X and Z as well as Y
 #
 set -e
 export channel=$1
@@ -127,6 +128,11 @@ done
 #
 if [ $SINGLE_CHANNEL == 0 ]; then
   if [ -z $ALIGN_FILE ]; then
+    if [ -z $ALIGN_XZ ]; then
+      export ALIGN_EXTRAS=""
+    else
+      export ALIGN_EXTRAS="--align-xz"
+    fi
     export ALIGN_FILE=$PWD/"$channel"-align.json
     oblique-align \
       --input $PWD/"$channel"_destriped_precomputed \
@@ -137,7 +143,8 @@ if [ $SINGLE_CHANNEL == 0 ]; then
       --n-cores $WORKERS \
       --sigma 10 \
       --sample-count 100 \
-      --window-size 51,51,51
+      --window-size 51,51,51 \
+      $ALIGN_EXTRAS
   fi
 #
 # Stitch the oblique volumes, using either a pre-existing alignment
