@@ -432,7 +432,6 @@ def make_json_alignment_dict(overlaps:dict, opts):
                 json_key = json.dumps((xz_key[0], y_key, xz_key[1]))
                 alignments[json_key] = [xz_key[0], y_key, xz_key[1]]
         for xz_key in um_y_offsets:
-            alignment = []
             for i, offsets in enumerate((
                     um_x_offsets, um_y_offsets, um_z_offsets)):
                 if (not opts.align_xz) and i != 1:
