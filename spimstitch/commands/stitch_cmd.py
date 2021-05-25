@@ -5,9 +5,11 @@ import typing
 from blockfs.directory import  Directory
 import logging
 from precomputed_tif.blockfs_stack import BlockfsStack
+from precomputed_tif.ngff_stack import NGFFStack
 import os
 import sys
 
+from spimstitch.ngff import NGFFDirectory
 from ..stitch import get_output_size, StitchSrcVolume, run
 
 
@@ -110,6 +112,11 @@ def parse_args(args=sys.argv[1:]):
         type=float,
         default=.80
     )
+    parser.add_argument(
+        "--ngff",
+        help="Output an NGFF volume instead of blockfs",
+        action="store_true"
+    )
     return parser.parse_args(args)
 
 
@@ -170,22 +177,32 @@ def main(args=sys.argv[1:]):
     l1_dir = os.path.join(opts.output, "1_1_1")
     if not os.path.exists(l1_dir):
         os.mkdir(l1_dir)
-    output = BlockfsStack((zs, ys, xs), opts.output)
+    if opts.ngff:
+        output = NGFFStack((xs, ys, xs), opts.output)
+        output.create()
+    else:
+        output = BlockfsStack((zs, ys, xs), opts.output)
     voxel_size = (opts.x_step_size * 1000,
                   opts.y_voxel_size * 1000,
                   opts.x_step_size * 1000)
     output.write_info_file(opts.levels, voxel_size)
-    directory_path = os.path.join(l1_dir, BlockfsStack.DIRECTORY_FILENAME)
-    directory = Directory(xs, ys, zs, volumes[0].directory.dtype,
-                          directory_path,
-                          n_filenames=opts.n_writers)
-    directory.create()
-    directory.start_writer_processes()
+    if opts.ngff:
+        directory = NGFFDirectory(output)
+        directory.create()
+    else:
+        directory_path = os.path.join(l1_dir, BlockfsStack.DIRECTORY_FILENAME)
+        directory = Directory(xs, ys, zs, volumes[0].directory.dtype,
+                              directory_path,
+                              n_filenames=opts.n_writers)
+        directory.create()
+        directory.start_writer_processes()
     run(volumes, directory, x0, y0, z0, opts.n_workers, opts.silent,
         y_illum_corr)
     directory.close()
     for level in range(2, opts.levels + 1):
-        output.write_level_n(level, opts.silent, opts.n_writers)
+        output.write_level_n(level,
+                             silent=opts.silent,
+                             n_cores=opts.n_writers)
 
 
 def adjust_alignments(opts, volumes:typing.Sequence[StitchSrcVolume]):
