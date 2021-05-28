@@ -29,8 +29,8 @@ if [ -z "$TEMPLATE" ]; then
   TEMPLATE=/media/share10/lee/data/2021-01-24_150slab/dataset/sub-mgh191021520/ses-20210124/microscopy/sub-mgh191021520_ses-20210124_sample-150slab_SPIM.json
 fi
 METADATA_FILE=$(dirname "$RAW_PATH")
-X_STEP_SIZE=$(dandi-metadata x-step-size "$METADATA_FILE")
-Y_VOXEL_SIZE=$(dandi-metadata y-voxel-size "$METADATA_FILE")
+X_STEP_SIZE=$(dandi-metadata get-x-step-size "$METADATA_FILE")
+Y_VOXEL_SIZE=$(dandi-metadata get-y-voxel-size "$METADATA_FILE")
 if [ ! -z "$ILLUM_CORR" ]; then
   ILLUM_CORR=/media/share10/lee/illum/ospim1-2021-03-09.tiff
 fi
