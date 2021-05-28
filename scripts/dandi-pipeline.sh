@@ -31,10 +31,10 @@ fi
 METADATA_FILE=$(dirname "$RAW_PATH")/metadata.txt
 X_STEP_SIZE=$(dandi-metadata get-x-step-size "$METADATA_FILE")
 Y_VOXEL_SIZE=$(dandi-metadata get-y-voxel-size "$METADATA_FILE")
-if [ ! -z "$ILLUM_CORR" ]; then
+if [ -z "$ILLUM_CORR" ]; then
   ILLUM_CORR=/media/share10/lee/illum/ospim1-2021-03-09.tiff
 fi
-if [ ! -z "$N_WORKERS" ]; then
+if [ -z "$N_WORKERS" ]; then
   N_WORKERS=48
 fi
 #
