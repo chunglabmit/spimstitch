@@ -63,7 +63,7 @@ do
   CHUNK_NUMBER=$(($CHUNK_NUMBER + 1))
   dcimg_filename=$(basename "$DCIMG_PATH")
   z=$(echo "$dcimg" | cut -d. -f1)
-  rest=$(dirname "$dcimg_filename")
+  rest=$(dirname "$DCIMG_PATH")
   xy=`basename $rest`
   rest=`dirname $rest`
   x=`basename $rest`
