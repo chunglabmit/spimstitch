@@ -105,15 +105,13 @@ def parse_args(args=sys.argv[1:]):
     subparser.set_defaults(func=get_x_step_size)
     subparser.add_argument(
         "metadata-file",
-        help="Path to the metadata.txt file",
-        required=True
+        help="Path to the metadata.txt file"
     )
     subparser = subparsers.add_parser("get-y-voxel-size")
     subparser.set_defaults(func=get_y_voxel_size)
     subparser.add_argument(
         "metadata-file",
-        help="Path to the metadata.txt file",
-        required=True
+        help="Path to the metadata.txt file"
     )
     return parser.parse_args(args)
 
