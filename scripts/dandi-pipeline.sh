@@ -87,6 +87,7 @@ do
   #
   # Write the NGFF volume
   #
+  mkdir -p $(dirname "$target_name")
   volume_path="$target_name".ngff
   sidecar_path="$target_name".json
     dcimg2oblique \
