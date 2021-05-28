@@ -55,7 +55,7 @@ echo "--------------------------------"
 #
 # Loop over each .dcimg file
 #
-ALL_DCIMGS=`find $RAW_PATH -name "**/*.dcimg"`
+ALL_DCIMGS=`find $RAW_PATH -wholename "**/*.dcimg"`
 
 CHUNK_NUMBER=0
 for DCIMG_PATH in $ALL_DCIMGS;
