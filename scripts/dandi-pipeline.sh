@@ -78,7 +78,7 @@ do
   --n-workers $N_WORKERS \
   --psnr $PSNR
 
-  target_name="$DANDI_ROOT"/$(dandi-metadata \
+  target_name="$DANDI_ROOT"/$(dandi-metadata target-file \
       --subject $SUBJECT \
       --sample $SAMPLE \
       --source-path $RAW_PATH \
