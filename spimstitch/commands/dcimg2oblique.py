@@ -8,9 +8,12 @@ import numpy as np
 import tifffile
 from blockfs import Directory
 from precomputed_tif.blockfs_stack import BlockfsStack
+from precomputed_tif.ngff_stack import NGFFStack
 from pystripe.core import filter_streaks, correct_lightsheet
 from pystripe.core import normalize_flat, apply_flat
 import sys
+
+from spimstitch.ngff import NGFFDirectory
 from ..oblique import spim_to_blockfs, get_blockfs_dims
 from ..stack import SpimStack
 from ..dcimg import DCIMG
@@ -156,6 +159,11 @@ def parse_args(args=sys.argv[1:]):
         help="Interpret the input as a glob expression for JPEG 2000 files",
         action="store_true"
     )
+    parser.add_argument(
+        "--ngff",
+        help="Output an NGFF volume instead of blockfs",
+        action="store_true"
+    )
     return parser.parse_args(args)
 
 
@@ -246,21 +254,30 @@ def main(args=sys.argv[1:]):
     #
     z_extent, y_extent, x_extent, dtype = get_blockfs_dims(
         stack, x_extent, y_extent)
-    bfs_stack = BlockfsStack((z_extent, y_extent, x_extent),
-                             MY_OPTS.output)
+    if MY_OPTS.ngff:
+        bfs_stack = NGFFStack((z_extent, y_extent, x_extent),
+                              MY_OPTS.output)
+        bfs_stack.create()
+    else:
+        bfs_stack = BlockfsStack((z_extent, y_extent, x_extent),
+                                 MY_OPTS.output)
     bfs_stack.write_info_file(MY_OPTS.levels)
-    bfs_level1_dir = os.path.join(
-        MY_OPTS.output, "1_1_1", BlockfsStack.DIRECTORY_FILENAME)
-    if not os.path.exists(os.path.dirname(bfs_level1_dir)):
-        os.mkdir(os.path.dirname(bfs_level1_dir))
-    directory = Directory(x_extent,
-                          y_extent,
-                          z_extent,
-                          np.uint16,
-                          bfs_level1_dir,
-                          n_filenames=MY_OPTS.n_writers)
-    directory.create()
-    directory.start_writer_processes()
+    if MY_OPTS.ngff:
+        directory = NGFFDirectory(bfs_stack)
+        directory.create()
+    else:
+        bfs_level1_dir = os.path.join(
+            MY_OPTS.output, "1_1_1", BlockfsStack.DIRECTORY_FILENAME)
+        if not os.path.exists(os.path.dirname(bfs_level1_dir)):
+            os.mkdir(os.path.dirname(bfs_level1_dir))
+        directory = Directory(x_extent,
+                              y_extent,
+                              z_extent,
+                              np.uint16,
+                              bfs_level1_dir,
+                              n_filenames=MY_OPTS.n_writers)
+        directory.create()
+        directory.start_writer_processes()
     spim_to_blockfs(stack, directory, MY_OPTS.n_workers,
                     read_fn=fn)
     for level in range(2, MY_OPTS.levels+1):

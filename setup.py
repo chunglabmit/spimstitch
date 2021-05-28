@@ -36,11 +36,13 @@ setup(
         "oblique-illum-corr=spimstitch.commands.illum_corr_cmd:main",
         "oblique-align=spimstitch.commands.align_cmd:main",
         "oblique-deconvolve=spimstitch.commands.deconvolve:main",
-        "oblique-deskew=spimstitch.commands.deskew_cmd:main"
+        "oblique-deskew=spimstitch.commands.deskew_cmd:main",
+        "dandi-metadata=spimstitch.commands.dandi_metadata:main"
     ]},
     scripts=["scripts/spimstitch-pipeline.sh",
              "scripts/jp2k-spimstitch-pipeline.sh",
-             "scripts/nonoblique-pipeline.sh"],
+             "scripts/nonoblique-pipeline.sh",
+             "scripts/dandi-pipeline.sh"],
     url="https://github.com/chunglabmit/spimstitch",
     license="MIT",
     classifiers=[

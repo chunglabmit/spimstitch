@@ -6,6 +6,10 @@ import os
 from blockfs.directory import Directory
 from precomputed_tif.blockfs_stack import BlockfsStack
 import sys
+
+from precomputed_tif.ngff_stack import NGFFStack
+
+from spimstitch.ngff import NGFFDirectory
 from ..oblique import spim_to_blockfs, get_blockfs_dims
 from ..stack import SpimStack, StackFrame
 
@@ -42,6 +46,11 @@ def parse_args(args=sys.argv[1:]):
         help="The number of worker processes for the processing pipeline",
         default=min(12, os.cpu_count()),
         type=int)
+    parser.add_argument(
+        "--ngff",
+        help="If present, output NGFF instead of blockfs",
+        action="store_true"
+    )
     return parser.parse_args(args)
 
 
@@ -55,20 +64,28 @@ def main(args=sys.argv[1:]):
     frame = StackFrame(paths[0], 0, 0, 0)
     stack = SpimStack(paths, frame.x0, frame.x1, frame.y0, frame.y1, 0)
     zs, ys, xs, dtype = get_blockfs_dims(stack)
-    bfs_stack = BlockfsStack((zs, ys, xs), opts.output)
+    if opts.ngff:
+        bfs_stack = NGFFStack((zs, ys, xs), opts.output)
+        bfs_stack.create()
+    else:
+        bfs_stack = BlockfsStack((zs, ys, xs), opts.output)
     bfs_stack.write_info_file(opts.levels)
-    bfs_level1_dir = os.path.join(
-        opts.output, "1_1_1", BlockfsStack.DIRECTORY_FILENAME)
-    if not os.path.exists(os.path.dirname(bfs_level1_dir)):
-        os.mkdir(os.path.dirname(bfs_level1_dir))
-    directory = Directory(xs,
-                          ys,
-                          zs,
-                          dtype,
-                          bfs_level1_dir,
-                          n_filenames=opts.n_writers)
-    directory.create()
-    directory.start_writer_processes()
+    if opts.ngff:
+        directory = NGFFDirectory(bfs_stack)
+        directory.create()
+    else:
+        bfs_level1_dir = os.path.join(
+            opts.output, "1_1_1", BlockfsStack.DIRECTORY_FILENAME)
+        if not os.path.exists(os.path.dirname(bfs_level1_dir)):
+            os.mkdir(os.path.dirname(bfs_level1_dir))
+        directory = Directory(xs,
+                              ys,
+                              zs,
+                              dtype,
+                              bfs_level1_dir,
+                              n_filenames=opts.n_writers)
+        directory.create()
+        directory.start_writer_processes()
     spim_to_blockfs(stack, directory, opts.n_workers)
     for level in range(2, opts.levels+1):
         bfs_stack.write_level_n(level, n_cores=opts.n_writers)
