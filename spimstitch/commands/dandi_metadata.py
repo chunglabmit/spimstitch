@@ -132,7 +132,7 @@ def target_file(opts):
     source_path = pathlib.Path(opts.source_path)
     match = re.search("^(\\d{8})_(\\d{2})_(\\d{2})_(\\d{2})", source_path.name)
     if not match:
-        print("%d did not match a date" % source_path.name,
+        print("%s did not match a date" % source_path.name,
               file=sys.stderr)
         exit(-1)
     session_groups = tuple(match.groups())

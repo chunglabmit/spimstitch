@@ -81,7 +81,7 @@ do
   target_name="$DANDI_ROOT"/$(dandi-metadata target-file \
       --subject $SUBJECT \
       --sample $SAMPLE \
-      --source-path $RAW_PATH \
+      --source-path $(dirname "$RAW_PATH") \
       --stain $STAIN \
       --chunk $CHUNK_NUMBER )
   #
