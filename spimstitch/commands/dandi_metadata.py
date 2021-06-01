@@ -134,7 +134,7 @@ def build_target_file_parser(subparsers):
     )
 
 def build_transform_parser(subparsers):
-    subparser = subparsers.ad_parser("write-transform")
+    subparser = subparsers.add_parser("write-transform")
     subparser.set_defaults(func=write_transform)
     subparser.add_argument(
         "--input",
