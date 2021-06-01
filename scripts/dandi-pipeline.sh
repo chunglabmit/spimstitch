@@ -105,7 +105,8 @@ do
 	     --destripe-method wavelet --sigma1 128 --sigma2 512 --wavelet db5 --crossover 10 \
 	     --flat $ILLUM_CORR --dark 100 \
 	    --levels 7 \
-	    --jp2k
+	    --jp2k \
+	    --ngff
 	#
 	# Write the sidecar.
 	#
