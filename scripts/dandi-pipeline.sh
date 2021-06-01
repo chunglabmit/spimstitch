@@ -15,6 +15,7 @@
 # $SUBJECT - the subject that was the source for the sample
 # $PSNR - snr for compression (default = 80)
 # $TEMPLATE - the JSON template for the sidecars
+# $JP2K_ROOT - place to put JPEG 2000 files.
 #
 RAW_PATH=$1
 if [ ! -d "$RAW_PATH" ];
@@ -37,6 +38,9 @@ fi
 if [ -z "$N_WORKERS" ]; then
   N_WORKERS=48
 fi
+if [ -z "$JP2K_ROOT" ]; then
+  JP2K_ROOT="$RAW_PATH"_jp2k
+fi
 #
 #----- Run parameters
 #
@@ -51,6 +55,7 @@ echo "Y_VOXEL_SIZE:  $Y_VOXEL_SIZE"
 echo "ILLUM_CORR:    $ILLUM_CORR"
 echo "N_WORKERS:     $N_WORKERS"
 echo "DANDI_ROOT:    $DANDI_ROOT"
+echo "JP2K_ROOT      $JP2K_ROOT"
 echo "--------------------------------"
 #
 # Loop over each .dcimg file
@@ -67,7 +72,7 @@ do
   xy=`basename $rest`
   rest=`dirname $rest`
   x=`basename $rest`
-  jp2k_path="$RAW_PATH"_jp2k/x/xy/z
+  jp2k_path="$JP2K_ROOT"/x/xy/z
   mkdir -p "$jp2k_path"
   #
   # Write the JPEG files
