@@ -153,7 +153,8 @@ def build_transform_parser(subparsers):
     subparser.add_argument(
         "--y-voxel-size",
         help="The size of a voxel in microns",
-        default=1.8
+        default=1.8,
+        type=float
     )
     subparser.add_argument(
         "dcimg_files",
