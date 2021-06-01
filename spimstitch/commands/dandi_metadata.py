@@ -27,11 +27,77 @@ import re
 import pathlib
 import sys
 
+import numpy as np
 from precomputed_tif.client import ArrayReader
+
 
 def parse_args(args=sys.argv[1:]):
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers()
+    build_target_file_parser(subparsers)
+    build_write_sidecar_parser(subparsers)
+    build_x_step_size_parser(subparsers)
+    build_y_voxel_size_parser(subparsers)
+    build_transform_parser(subparsers)
+    return parser.parse_args(args)
+
+
+def build_y_voxel_size_parser(subparsers):
+    subparser = subparsers.add_parser("get-y-voxel-size")
+    subparser.set_defaults(func=get_y_voxel_size)
+    subparser.add_argument(
+        "metadata_file",
+        help="Path to the metadata.txt file"
+    )
+
+
+def build_x_step_size_parser(subparsers):
+    subparser = subparsers.add_parser("get-x-step-size")
+    subparser.set_defaults(func=get_x_step_size)
+    subparser.add_argument(
+        "metadata_file",
+        help="Path to the metadata.txt file"
+    )
+
+
+def build_write_sidecar_parser(subparsers):
+    subparser = subparsers.add_parser("write-sidecar")
+    subparser.set_defaults(func=write_sidecar)
+    subparser.add_argument(
+        "--template",
+        help="Path to template JSON file which serves as the base for"
+             "the sidecar",
+        required=True
+    )
+    subparser.add_argument(
+        "--metadata-file",
+        help="Path to the metadata file containing the oblique spim recorded "
+             "metadata. Defaults to \"metadata.txt\" in the same "
+             "directory as the volume"
+    )
+    subparser.add_argument(
+        "--volume",
+        help="Pointer to the NGFF volume",
+        required=True
+    )
+    subparser.add_argument(
+        "--volume-format",
+        help="Precomputed format of the volume, e.g. \"blockfs\" or \"ngff\".",
+        default="ngff"
+    )
+    subparser.add_argument(
+        "--stain",
+        help="Stain used for volume",
+        required=True
+    )
+    subparser.add_argument(
+        "--output",
+        help="Name of the sidecar JSON file",
+        required=True
+    )
+
+
+def build_target_file_parser(subparsers):
     subparser = subparsers.add_parser("target-file")
     subparser.set_defaults(func=target_file)
     subparser.add_argument(
@@ -67,53 +133,36 @@ def parse_args(args=sys.argv[1:]):
         required=True
     )
 
-    subparser = subparsers.add_parser("write-sidecar")
-    subparser.set_defaults(func=write_sidecar)
+def build_transform_parser(subparsers):
+    subparser = subparsers.ad_parser("write-transform")
+    subparser.set_defaults(func=write_transform)
     subparser.add_argument(
-        "--template",
-        help="Path to template JSON file which serves as the base for"
-             "the sidecar",
-        required=True
-    )
-    subparser.add_argument(
-        "--metadata-file",
-        help="Path to the metadata file containing the oblique spim recorded "
-             "metadata. Defaults to \"metadata.txt\" in the same "
-             "directory as the volume"
-    )
-    subparser.add_argument(
-        "--volume",
-        help="Pointer to the NGFF volume",
-        required=True
-    )
-    subparser.add_argument(
-        "--volume-format",
-        help="Precomputed format of the volume, e.g. \"blockfs\" or \"ngff\".",
-        default="ngff"
-    )
-    subparser.add_argument(
-        "--stain",
-        help="Stain used for volume",
-        required=True
-    )
+        "--input",
+        help="The path to the DCIMG file being converted",
+        required=True)
     subparser.add_argument(
         "--output",
-        help="Name of the sidecar JSON file",
+        help="The file to be written",
         required=True
     )
-    subparser = subparsers.add_parser("get-x-step-size")
-    subparser.set_defaults(func=get_x_step_size)
     subparser.add_argument(
-        "metadata_file",
-        help="Path to the metadata.txt file"
+        "--target-reference-frame",
+        help="The name of the target reference frame, e.g. the slab #",
+        required=True
     )
-    subparser = subparsers.add_parser("get-y-voxel-size")
-    subparser.set_defaults(func=get_y_voxel_size)
     subparser.add_argument(
-        "metadata_file",
-        help="Path to the metadata.txt file"
+        "--y-voxel-size",
+        help="The size of a voxel in microns",
+        default=1.8
     )
-    return parser.parse_args(args)
+    subparser.add_argument(
+        "dcimg_files",
+        nargs="*",
+        default=[],
+        help="The remainder of the files should include all of the "
+             "DCIMG files in the volume"
+    )
+
 
 
 def get_x_step_size(opts):
@@ -161,6 +210,32 @@ def write_sidecar(opts):
     with open(opts.output, "w") as fd:
         json.dump(sidecar, fd, indent=2)
 
+def get_xyz_from_path(key):
+    z = int(key.stem)
+    x, y = [int(_) for _ in key.parent.name.split("_")]
+    return x, y, z
+
+def write_transform(opts):
+    def sortfn(key:pathlib.Path):
+        x, y, z = get_xyz_from_path(key)
+        return x, y, z
+
+    all_paths = sorted([pathlib.Path(_) for _ in opts.dcimg_files],
+                       key=sortfn)
+    x0, y0, z0 = get_xyz_from_path(all_paths[0])
+    xi, yi, zi = get_xyz_from_path(pathlib.Path(opts.input))
+    xp = (x0 - xi) * np.sqrt(2) / 10 / opts.y_voxel_size
+    yp = (y0 - yi) / 10 / opts.y_voxel_size
+    zp = (z0 - zi) * np.sqrt(2) / 10 / opts.y_voxel_size
+    d = dict(
+        SourceReferenceFrame="original",
+        TargetReferenceFrame=opts.target_reference_frame,
+        TransformationType="translation-3d",
+        TransformationParameters=dict(
+            x=xp, y=yp, z=zp)
+        )
+    with open(opts.output, "w") as fd:
+        json.dump([d], fd, indent=2)
 
 def get_sizes(metadata_path):
     lines = [line.strip() for line in open(metadata_path, encoding="latin1")]

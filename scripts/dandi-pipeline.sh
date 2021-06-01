@@ -95,6 +95,7 @@ do
   mkdir -p $(dirname "$target_name")
   volume_path="$target_name".ngff
   sidecar_path="$target_name".json
+  transform_path=${target_name::-4}xfm.json
     dcimg2oblique \
       --n-writers 11 \
       --n-workers $N_WORKERS \
@@ -117,6 +118,15 @@ do
 	  --volume-format ngff \
 	  --stain "$STAIN" \
 	  --output "$sidecar_path"
+	#
+	# Write the transform file
+	#
+	dandi-metadata write-transform \
+	  --input "$DCIMG_PATH" \
+	  --output "$transform_path" \
+	  --y-voxel-size "$Y_VOXEL_SIZE" \
+	  --target-reference-frame slab"$SAMPLE" \
+	  $ALL_DCIMGS
 	#
 	# At this point, the dcimg file could be deleted... not yet though
 	#
