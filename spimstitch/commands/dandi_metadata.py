@@ -27,7 +27,7 @@ import re
 import pathlib
 import sys
 
-import numpy as np
+from math import sqrt
 from precomputed_tif.client import ArrayReader
 
 
@@ -225,9 +225,9 @@ def write_transform(opts):
                        key=sortfn)
     x0, y0, z0 = get_xyz_from_path(all_paths[0])
     xi, yi, zi = get_xyz_from_path(pathlib.Path(opts.input))
-    xp = (x0 - xi) * np.sqrt(2) / 10 / opts.y_voxel_size
+    xp = (x0 - xi) * sqrt(2) / 10 / opts.y_voxel_size
     yp = (y0 - yi) / 10 / opts.y_voxel_size
-    zp = (z0 - zi) * np.sqrt(2) / 10 / opts.y_voxel_size
+    zp = (z0 - zi) * sqrt(2) / 10 / opts.y_voxel_size
     d = dict(
         SourceReferenceFrame="original",
         TargetReferenceFrame=opts.target_reference_frame,
