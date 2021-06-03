@@ -95,7 +95,7 @@ do
   mkdir -p $(dirname "$target_name")
   volume_path="$target_name".ngff
   sidecar_path="$target_name".json
-  transform_path=${target_name::-4}xfm.json
+  transform_path=${target_name::-4}transforms.json
     dcimg2oblique \
       --n-writers 11 \
       --n-workers $N_WORKERS \
