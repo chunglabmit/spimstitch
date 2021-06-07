@@ -93,6 +93,10 @@ def parse_args(args=sys.argv[1:]):
         help="Adjust X and Z alignments as well as y",
         action="store_true"
     )
+    parser.add_argument(
+        "--ngff",
+        help="Use NGFF stacks instead of blockfs",
+        action="store_true")
     return parser.parse_args(args)
 
 
@@ -275,8 +279,12 @@ def main(args=sys.argv[1:]):
     # Collect the stacks. These are in the format
     # opts.input/X/X_Y/Z/1_1_1/precomputed.blockfs
     #
-    paths = sorted(pathlib.Path(opts.input)
-                   .glob("**/1_1_1/precomputed.blockfs"))
+    if opts.ngff:
+        paths = sorted(pathlib.Path(opts.input)
+                       .glob("**/1_1_1/precomputed.blockfs"))
+    else:
+        paths = [path.parent for path in
+                 sorted(pathlib.Path(opts.input).glob("**/.zgroup"))]
     if len(paths) == 0:
         print("There are no precomputed.blockfs files in the path, %s" %
               opts.input)
@@ -289,16 +297,37 @@ def main(args=sys.argv[1:]):
         zum = opts.x_step_size
     all_volumes = []
     for path in paths:
-        zpath = path.parent.parent
-        try:
-            z = float(zpath.name) / 10
-        except ValueError:
-            z = 0
-        x, y = [float(_) / 10 for _ in zpath.parent.name.split("_")]
-        volume = VOLUMES[x, y, z] = StitchSrcVolume(str(path),
-                                                    opts.x_step_size,
-                                                    opts.voxel_size,
-                                                    z, opts.is_oblique)
+        if opts.ngff:
+            # The NGFF files should have matching _transforms files
+            # This file has the putative offset of each stack
+            #
+            xfm_path = path.parent / path.stem[:-4] + "transforms.json"
+            if not xfm_path.exists():
+                raise FileNotFoundError(
+                    "%s does not have a matching transforms file" % str(path))
+            with open(xfm_path) as fd:
+                xfm = json.load(fd)
+                x, y, z = [xfm["TransformParameters"][_] for _ in "xyz"]
+            volume = VOLUMES[x, y, z] = StitchSrcVolume(
+                str(path),
+                opts.x_step_size,
+                opts.voxel_size,
+                z0=z,
+                is_oblique=opts.is_oblique,
+                is_ngff=True,
+                x0=x, y0=y)
+        else:
+            zpath = path.parent.parent
+            try:
+                z = float(zpath.name) / 10
+            except ValueError:
+                z = 0
+            x, y = [float(_) / 10 for _ in zpath.parent.name.split("_")]
+            volume = VOLUMES[x, y, z] = StitchSrcVolume(str(path),
+                                                        opts.x_step_size,
+                                                        opts.voxel_size,
+                                                        z, opts.is_oblique,
+                                                        opts.is_ngff)
         if not opts.is_oblique:
             volume.x0 = z
             volume.xum = xum

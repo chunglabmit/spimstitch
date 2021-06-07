@@ -39,6 +39,8 @@ def parse_args(args=sys.argv[1:]):
     build_x_step_size_parser(subparsers)
     build_y_voxel_size_parser(subparsers)
     build_transform_parser(subparsers)
+    build_order_dcimg_files(subparsers)
+    build_rewrite_transforms(subparsers)
     return parser.parse_args(args)
 
 
@@ -165,6 +167,32 @@ def build_transform_parser(subparsers):
     )
 
 
+def build_rewrite_transforms(subparsers):
+    subparser = subparsers.add_parser("rewrite-transforms")
+    subparser.set_defaults(func=rewrite_transforms)
+    subparser.add_argument(
+        "--align-file",
+        help="The output from oblique-align",
+        required=True
+    )
+    subparser.add_argument(
+        "transform-files",
+        nargs="*",
+        default=[],
+        help="The transform files output by the write-transforms subcommand"
+    )
+
+def build_order_dcimg_files(subparsers):
+    subparser = subparsers.add_parser("order-dcimg-files")
+    subparser.set_defaults(func=order_dcimg_files_cmd)
+    subparser.add_argument(
+        "dcimg_files",
+        nargs="*",
+        default=[],
+        help="The remainder of the files should include all of the "
+             "DCIMG files in the volume"
+    )
+
 
 def get_x_step_size(opts):
     metadata_path = pathlib.Path(opts.metadata_file)
@@ -217,12 +245,8 @@ def get_xyz_from_path(key):
     return x, y, z
 
 def write_transform(opts):
-    def sortfn(key:pathlib.Path):
-        x, y, z = get_xyz_from_path(key)
-        return x, y, z
-
-    all_paths = sorted([pathlib.Path(_) for _ in opts.dcimg_files],
-                       key=sortfn)
+    dcimg_files = opts.dcimg_files
+    all_paths = order_dcimg_files(dcimg_files)
     x0, y0, z0 = get_xyz_from_path(all_paths[0])
     xi, yi, zi = get_xyz_from_path(pathlib.Path(opts.input))
     xp = (x0 - xi) * sqrt(2) / 10 / opts.y_voxel_size
@@ -238,12 +262,43 @@ def write_transform(opts):
     with open(opts.output, "w") as fd:
         json.dump([d], fd, indent=2)
 
+def order_dcimg_files_cmd(opts):
+    all_paths = order_dcimg_files(opts.dcimg_files)
+    print('"' + ('" "'.join([str(_) for _ in all_paths])) + '"')
+
+def order_dcimg_files(dcimg_files):
+    def sortfn(key: pathlib.Path):
+        x, y, z = get_xyz_from_path(key)
+        return x, y, z
+
+    all_paths = sorted([pathlib.Path(_) for _ in dcimg_files],
+                       key=sortfn)
+    return all_paths
+
+
 def get_sizes(metadata_path):
     lines = [line.strip() for line in open(metadata_path, encoding="latin1")]
     fields = lines[1].split("\t")
     x_step_size = float(fields[3])
     y_voxel_size = float(fields[2])
     return x_step_size, y_voxel_size
+
+
+def rewrite_transforms(opts):
+    with open(opts.align_file) as fd:
+        alignment = json.load(fd)
+    alignments = alignment["alignments"]
+    for transform_filename in opts.transform_files:
+        with open(transform_filename) as fd:
+            transform = json.load(fd)
+        x, y, z = [float(transform[0]["TransformParameters"][_]) for _ in "xyz"]
+        if (x, y, z) in alignments:
+            new_x, new_y, new_z = alignments[x, y, z]
+            transform["TransformParameters"]["x"] = new_x
+            transform["TransformParameters"]["y"] = new_y
+            transform["TransformParameters"]["z"] = new_z
+            with open(opts.transform_filename, "w") as fd:
+                json.dump(transform, fd, indent=2)
 
 
 def main(args=sys.argv[1:]):

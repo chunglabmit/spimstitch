@@ -16,6 +16,7 @@
 # $PSNR - snr for compression (default = 80)
 # $TEMPLATE - the JSON template for the sidecars
 # $JP2K_ROOT - place to put JPEG 2000 files.
+# $ALIGN_FILE - the output of the oblique-align command from a previous channel or not present to calculate it
 #
 RAW_PATH=$1
 if [ ! -d "$RAW_PATH" ];
@@ -60,7 +61,9 @@ echo "--------------------------------"
 #
 # Loop over each .dcimg file
 #
-ALL_DCIMGS=`find $RAW_PATH -wholename "**/*.dcimg"`
+ALL_DCIMGS=$(find $RAW_PATH -wholename "**/*.dcimg")
+ALL_DCIMGS=$(dandi-metadata order-dcimg-files $ALL_DCIMGS)
+STACK_COUNT=$( echo "$ALL_DCIMGS"| wc -w )
 
 CHUNK_NUMBER=0
 for DCIMG_PATH in $ALL_DCIMGS;
@@ -131,3 +134,23 @@ do
 	# At this point, the dcimg file could be deleted... not yet though
 	#
 done
+if [ $STACK_COUNT == "1" ]; then
+  echo "Single stack"
+else
+  if [ -z $ALIGN_FILE ]; then
+    ALIGN_FILE="$RAW_PATH"-align.json
+    oblique-align \
+      --ngff \
+      --input $(dirname "$target_name") \
+      --output $ALIGN_FILE \
+      --voxel-size $Y_VOXEL_SIZE \
+      --x-step-size $X_STEP_SIZE \
+      --is-oblique \
+      --n-cores "$N_WORKERS" \
+      --sigma 10 \
+      --sample-count 250 \
+      --window-size 51,51,51
+  fi
+  ALL_TRANSFORM_FILES=$(find $(dirname "$target_name") -name "*_transforms.json")
+  dandi-metadata rewrite-transforms --align-file "$ALIGN_FILE" $ALL_TRANSFORM_FILES
+fi
