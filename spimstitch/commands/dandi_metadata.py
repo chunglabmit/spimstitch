@@ -264,7 +264,7 @@ def write_transform(opts):
 
 def order_dcimg_files_cmd(opts):
     all_paths = order_dcimg_files(opts.dcimg_files)
-    print('"' + ('" "'.join([str(_) for _ in all_paths])) + '"')
+    print(" ".join([str(_) for _ in all_paths]))
 
 def order_dcimg_files(dcimg_files):
     def sortfn(key: pathlib.Path):
