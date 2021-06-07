@@ -39,8 +39,9 @@ class StitchSrcVolume:
         self.key = uuid.uuid4()
         self.path = path
         if is_ngff:
-            stack = NGFFStack()
             self.directory = NGFFReadOnlyDirectory(path)
+            stack = NGFFStack(self.directory.shape, path,
+                              dtype=self.directory.dtype)
         else:
             self.directory = Directory.open(path)
         self.xum = x_step_size

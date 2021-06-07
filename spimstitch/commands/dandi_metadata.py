@@ -25,6 +25,7 @@ import argparse
 import json
 import re
 import pathlib
+import shutil
 import sys
 
 from math import sqrt
@@ -135,6 +136,7 @@ def build_target_file_parser(subparsers):
         required=True
     )
 
+
 def build_transform_parser(subparsers):
     subparser = subparsers.add_parser("write-transform")
     subparser.set_defaults(func=write_transform)
@@ -176,7 +178,7 @@ def build_rewrite_transforms(subparsers):
         required=True
     )
     subparser.add_argument(
-        "transform-files",
+        "transform_files",
         nargs="*",
         default=[],
         help="The transform files output by the write-transforms subcommand"
@@ -249,9 +251,9 @@ def write_transform(opts):
     all_paths = order_dcimg_files(dcimg_files)
     x0, y0, z0 = get_xyz_from_path(all_paths[0])
     xi, yi, zi = get_xyz_from_path(pathlib.Path(opts.input))
-    xp = (x0 - xi) * sqrt(2) / 10 / opts.y_voxel_size
-    yp = (y0 - yi) / 10 / opts.y_voxel_size
-    zp = (z0 - zi) * sqrt(2) / 10 / opts.y_voxel_size
+    xp = (xi - x0) * sqrt(2) / 10 / opts.y_voxel_size
+    yp = (yi - y0) / 10 / opts.y_voxel_size
+    zp = (zi - z0) * sqrt(2) / 10 / opts.y_voxel_size
     d = dict(
         SourceReferenceFrame="original",
         TargetReferenceFrame=opts.target_reference_frame,
@@ -287,17 +289,18 @@ def get_sizes(metadata_path):
 def rewrite_transforms(opts):
     with open(opts.align_file) as fd:
         alignment = json.load(fd)
-    alignments = alignment["alignments"]
+    alignments = dict([(tuple([int(_) for _ in json.loads(k)]), v) for k, v
+                       in alignment["alignments"].items()])
     for transform_filename in opts.transform_files:
         with open(transform_filename) as fd:
             transform = json.load(fd)
-        x, y, z = [float(transform[0]["TransformParameters"][_]) for _ in "xyz"]
+        x, y, z = [int(transform[0]["TransformationParameters"][_]) for _ in "xyz"]
         if (x, y, z) in alignments:
             new_x, new_y, new_z = alignments[x, y, z]
-            transform["TransformParameters"]["x"] = new_x
-            transform["TransformParameters"]["y"] = new_y
-            transform["TransformParameters"]["z"] = new_z
-            with open(opts.transform_filename, "w") as fd:
+            transform[0]["TransformationParameters"]["x"] = new_x
+            transform[0]["TransformationParameters"]["y"] = new_y
+            transform[0]["TransformationParameters"]["z"] = new_z
+            with open(transform_filename, "w") as fd:
                 json.dump(transform, fd, indent=2)
 
 

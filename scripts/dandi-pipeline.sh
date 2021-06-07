@@ -75,7 +75,7 @@ do
   xy=`basename $rest`
   rest=`dirname $rest`
   x=`basename $rest`
-  jp2k_path="$JP2K_ROOT"/x/xy/z
+  jp2k_path="$JP2K_ROOT"/"$x"/"$xy"/"$z"
   mkdir -p "$jp2k_path"
   #
   # Write the JPEG files

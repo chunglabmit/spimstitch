@@ -279,7 +279,7 @@ def main(args=sys.argv[1:]):
     # Collect the stacks. These are in the format
     # opts.input/X/X_Y/Z/1_1_1/precomputed.blockfs
     #
-    if opts.ngff:
+    if not opts.ngff:
         paths = sorted(pathlib.Path(opts.input)
                        .glob("**/1_1_1/precomputed.blockfs"))
     else:
@@ -301,13 +301,13 @@ def main(args=sys.argv[1:]):
             # The NGFF files should have matching _transforms files
             # This file has the putative offset of each stack
             #
-            xfm_path = path.parent / path.stem[:-4] + "transforms.json"
+            xfm_path = path.parent / (path.stem[:-4] + "transforms.json")
             if not xfm_path.exists():
                 raise FileNotFoundError(
                     "%s does not have a matching transforms file" % str(path))
             with open(xfm_path) as fd:
                 xfm = json.load(fd)
-                x, y, z = [xfm["TransformParameters"][_] for _ in "xyz"]
+                x, y, z = [xfm[0]["TransformationParameters"][_] for _ in "xyz"]
             volume = VOLUMES[x, y, z] = StitchSrcVolume(
                 str(path),
                 opts.x_step_size,

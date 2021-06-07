@@ -106,9 +106,9 @@ class NGFFReadOnlyDirectory:
         return self.array.dtype
 
     def get_block_size(self, x, y, z):
-        return (min(self.stack.z_extent - z, self.z_block_size),
-                min(self.stack.y_extent - y, self.y_block_size),
-                min(self.stack.x_extent - x, self.x_block_size))
+        return (min(self.z_extent - z, self.z_block_size),
+                min(self.y_extent - y, self.y_block_size),
+                min(self.x_extent - x, self.x_block_size))
 
     def read_block(self, x0, y0, z0):
         zs, ys, xs = self.get_block_size(x0, y0, z0)
