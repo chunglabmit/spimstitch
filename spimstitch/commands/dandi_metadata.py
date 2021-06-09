@@ -259,7 +259,7 @@ def write_transform(opts):
         TargetReferenceFrame=opts.target_reference_frame,
         TransformationType="translation-3d",
         TransformationParameters=dict(
-            x=xp, y=yp, z=zp)
+            XOffset=xp, YOffset=yp, ZOffset=zp)
         )
     with open(opts.output, "w") as fd:
         json.dump([d], fd, indent=2)
@@ -294,7 +294,8 @@ def rewrite_transforms(opts):
     for transform_filename in opts.transform_files:
         with open(transform_filename) as fd:
             transform = json.load(fd)
-        x, y, z = [int(transform[0]["TransformationParameters"][_]) for _ in "xyz"]
+        x, y, z = [int(transform[0]["TransformationParameters"][_])
+                   for _ in ("XOffset", "YOffset", "ZOffset")]
         if (x, y, z) in alignments:
             new_x, new_y, new_z = alignments[x, y, z]
             transform[0]["TransformationParameters"]["XOffset"] = new_x

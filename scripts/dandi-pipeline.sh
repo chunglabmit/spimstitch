@@ -139,6 +139,8 @@ if [ $STACK_COUNT == "1" ]; then
 else
   if [ -z $ALIGN_FILE ]; then
     ALIGN_FILE="$RAW_PATH"-align.json
+  fi
+  if [ ! -f $ALIGN_FILE ]; then
     oblique-align \
       --ngff \
       --input $(dirname "$target_name") \
