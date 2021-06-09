@@ -297,9 +297,9 @@ def rewrite_transforms(opts):
         x, y, z = [int(transform[0]["TransformationParameters"][_]) for _ in "xyz"]
         if (x, y, z) in alignments:
             new_x, new_y, new_z = alignments[x, y, z]
-            transform[0]["TransformationParameters"]["x"] = new_x
-            transform[0]["TransformationParameters"]["y"] = new_y
-            transform[0]["TransformationParameters"]["z"] = new_z
+            transform[0]["TransformationParameters"]["XOffset"] = new_x
+            transform[0]["TransformationParameters"]["YOffset"] = new_y
+            transform[0]["TransformationParameters"]["ZOffset"] = new_z
             with open(transform_filename, "w") as fd:
                 json.dump(transform, fd, indent=2)
 
