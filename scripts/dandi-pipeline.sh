@@ -154,5 +154,8 @@ else
       --window-size 51,51,51
   fi
   ALL_TRANSFORM_FILES=$(find $(dirname "$target_name") -name "*_transforms.json")
-  dandi-metadata rewrite-transforms --align-file "$ALIGN_FILE" $ALL_TRANSFORM_FILES
+  dandi-metadata rewrite-transforms \
+      --align-file "$ALIGN_FILE" \
+      --y-voxel-size $Y_VOXEL_SIZE \
+      $ALL_TRANSFORM_FILES
 fi

@@ -29,6 +29,7 @@ import shutil
 import sys
 
 from math import sqrt
+
 from precomputed_tif.client import ArrayReader
 
 
@@ -178,6 +179,12 @@ def build_rewrite_transforms(subparsers):
         required=True
     )
     subparser.add_argument(
+        "--y-voxel-size",
+        help="The size of a voxel in microns in the image plane",
+        type=float,
+        required=True
+    )
+    subparser.add_argument(
         "transform_files",
         nargs="*",
         default=[],
@@ -291,13 +298,20 @@ def rewrite_transforms(opts):
         alignment = json.load(fd)
     alignments = dict([(tuple([int(_) for _ in json.loads(k)]), v) for k, v
                        in alignment["alignments"].items()])
+    yum = opts.y_voxel_size
+    xum = zum = yum / sqrt(2)
     for transform_filename in opts.transform_files:
         with open(transform_filename) as fd:
             transform = json.load(fd)
-        x, y, z = [int(transform[0]["TransformationParameters"][_])
-                   for _ in ("XOffset", "YOffset", "ZOffset")]
+        x, y, z = [int(transform[0]["TransformationParameters"][key] * um)
+                   for key, um in
+                   (("XOffset", xum),
+                    ("YOffset", yum),
+                    ("ZOffset", zum))]
         if (x, y, z) in alignments:
-            new_x, new_y, new_z = alignments[x, y, z]
+            new_x, new_y, new_z = [
+                offset / um for offset, um
+                in zip(alignments[x, y, z], (xum, yum, zum))]
             transform[0]["TransformationParameters"]["XOffset"] = new_x
             transform[0]["TransformationParameters"]["YOffset"] = new_y
             transform[0]["TransformationParameters"]["ZOffset"] = new_z

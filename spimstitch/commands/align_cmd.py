@@ -292,7 +292,7 @@ def main(args=sys.argv[1:]):
     xum = opts.voxel_size / np.sqrt(2)
     yum = opts.voxel_size
     if opts.is_oblique:
-        zum = opts.x_step_size / np.sqrt(2)
+        zum = opts.voxel_size / np.sqrt(2)
     else:
         zum = opts.x_step_size
     all_volumes = []
@@ -307,7 +307,10 @@ def main(args=sys.argv[1:]):
                     "%s does not have a matching transforms file" % str(path))
             with open(xfm_path) as fd:
                 xfm = json.load(fd)
-                x, y, z = [xfm[0]["TransformationParameters"][_] for _ in "xyz"]
+                x, y, z = [
+                    xfm[0]["TransformationParameters"][key] * um
+                    for key, um in
+                    (("XOffset", xum), ("YOffset", yum), ("ZOffset", zum))]
             volume = VOLUMES[x, y, z] = StitchSrcVolume(
                 str(path),
                 opts.x_step_size,
