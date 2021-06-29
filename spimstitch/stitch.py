@@ -8,14 +8,20 @@ import os
 import tqdm
 import typing
 import uuid
+
+from precomputed_tif.ngff_stack import NGFFStack
 from sklearn.linear_model import RANSACRegressor
 from scipy import ndimage
+
+from spimstitch.ngff import NGFFDirectory, NGFFReadOnlyDirectory
 
 
 class StitchSrcVolume:
 
     def __init__(self, path:str, x_step_size:float, yum:float, z0:int,
-                 is_oblique:bool=True):
+                 is_oblique:bool=True,
+                 is_ngff=False,
+                 x0=None, y0=None):
         """
 
         :param path: Path to a blockfs directory file. The path contains
@@ -27,16 +33,27 @@ class StitchSrcVolume:
         :param yum: Y pixel size of pixels in the original planes
         :param z0: z0 of the stack.
         :param is_oblique: True if oblique, False if doing non-oblique stitch
+        :param is_ngff: if True, use NGFF duck-typed directory, false, use
+                        blockfs
         """
         self.key = uuid.uuid4()
         self.path = path
-        self.directory = Directory.open(path)
+        if is_ngff:
+            self.directory = NGFFReadOnlyDirectory(path)
+            stack = NGFFStack(self.directory.shape, path,
+                              dtype=self.directory.dtype)
+        else:
+            self.directory = Directory.open(path)
         self.xum = x_step_size
         self.zum = x_step_size
         self.yum = yum
-        z_metadata_dir = os.path.dirname(os.path.dirname(path))
-        metadata_dir = os.path.split(os.path.dirname(z_metadata_dir))[-1]
-        self.x0, self.y0 = [int(_) / 10 for _ in metadata_dir.split("_")]
+        if x0 is None and y0 is None:
+            z_metadata_dir = os.path.dirname(os.path.dirname(path))
+            metadata_dir = os.path.split(os.path.dirname(z_metadata_dir))[-1]
+            self.x0, self.y0 = [int(_) / 10 for _ in metadata_dir.split("_")]
+        else:
+            self.x0 = x0
+            self.y0 = y0
         self.z0 = z0
         self.is_oblique = is_oblique
 

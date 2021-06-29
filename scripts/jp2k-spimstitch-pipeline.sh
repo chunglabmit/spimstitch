@@ -15,6 +15,7 @@
 #               Subsequent channels should use the first channel's alignment file.
 # $DONT_CLEANUP_INTERMEDIATES - if this is 1, then we keep the stack neuroglancer volumes
 # $ALIGN_XZ - if this is defined, then we allow alignment adjustment of X and Z as well as Y
+# $NGFF - if this is defined, output in NGFF format instead of blockfs
 #
 set -e
 export channel=$1
@@ -150,6 +151,10 @@ if [ $SINGLE_CHANNEL == 0 ]; then
 # Stitch the oblique volumes, using either a pre-existing alignment
 # or the one calculated above.
 #
+if [ -n "$NGFF" ]; then
+    NGFF_EXTRAS=--ngff
+fi
+
 oblique2stitched \
     --input $PWD/"$channel"_destriped_precomputed \
     --output $PWD/"$channel"_destriped_precomputed_stitched \
@@ -159,7 +164,8 @@ oblique2stitched \
     --y-voxel-size "$Y_VOXEL_SIZE" \
     --z-offset "$Z_OFFSET" \
     --n-writers 11 \
-    --n-workers 24
+    --n-workers 24 \
+    $NGFF_EXTRAS
 fi
 #
 # Convert the precomputed volume's level 1 blockfs to TIFFs
