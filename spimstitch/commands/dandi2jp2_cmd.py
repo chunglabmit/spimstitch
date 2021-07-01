@@ -28,7 +28,7 @@ def parse_args(args=sys.argv[1:]):
     parser.add_argument(
         "--output-pattern",
         help="The output pattern for JPEG 2000 files, e.g. "
-             "\"/path-to/img_%04d.jp2\".",
+             "\"/path-to/img_%%04d.jp2\".",
         required=True
     )
     parser.add_argument(
