@@ -42,12 +42,17 @@ fi
 if [ -z "$JP2K_ROOT" ]; then
   JP2K_ROOT="$RAW_PATH"_jp2k
 fi
+if [ -z "$SUBJECT" ]; then
+  echo "SUBJECT undefined"
+  exit 1
+fi
 #
 #----- Run parameters
 #
 set -e
 echo "--------- Run parameters --------"
 echo "Path:          $RAW_PATH"
+echo "Subject:       $SUBJECT"
 echo "Stain:         $STAIN"
 echo "Sample:        $SAMPLE"
 echo "Metadata file: $METADATA_FILE"
@@ -153,7 +158,14 @@ else
       --sample-count 250 \
       --window-size 51,51,51
   fi
-  ALL_TRANSFORM_FILES=$(find $(dirname "$target_name") -name "*_transforms.json")
+  transform_wildcard=$(basename $(dandi-metadata target-file \
+    --subject $SUBJECT \
+    --sample $SAMPLE \
+    --source-path $(dirname $RAW_PATH) \
+    --stain $STAIN \
+    --chunk "*" ))
+  transform_wildcard=${transform_wildcard::-4}transforms.json
+  ALL_TRANSFORM_FILES=$(find $(dirname "$target_name") -name $transform_wildcard)
   dandi-metadata rewrite-transforms \
       --align-file "$ALIGN_FILE" \
       --y-voxel-size $Y_VOXEL_SIZE \
