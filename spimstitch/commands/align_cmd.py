@@ -329,8 +329,7 @@ def main(args=sys.argv[1:]):
             volume = VOLUMES[x, y, z] = StitchSrcVolume(str(path),
                                                         opts.x_step_size,
                                                         opts.voxel_size,
-                                                        z, opts.is_oblique,
-                                                        opts.is_ngff)
+                                                        z, opts.is_oblique)
         if not opts.is_oblique:
             volume.x0 = z
             volume.xum = xum
