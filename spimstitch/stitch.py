@@ -622,11 +622,12 @@ def do_block(x0: int, y0:int, z0: int, x0g:int, y0g:int, z0g:int):
         block = volume.read_block(x0, x1, y0, y1, z0, z1)
         block = illum_correct(block, volume, y0, y1)
     else:
-        block = np.zeros((z1-z0, y1-y0, x1-x0), OUTPUT.dtype)
+        block = np.zeros((z1-z0, y1-y0, x1-x0), np.float32)
         distances = [volume.distance_to_edge(x0, x1, y0, y1, z0, z1)
                      for volume in volumes]
         masks = [volume.get_mask(x0, x1, y0, y1, z0, z1)
                  for volume in volumes]
+        total = np.zeros(block.shape, np.float32)
         for volume, (dz, dy, dx), mask in zip(volumes, distances, masks):
             vblock = volume.read_block(x0, x1, y0, y1, z0, z1)
             vblock = illum_correct(vblock, volume, y0, y1)
@@ -652,9 +653,10 @@ def do_block(x0: int, y0:int, z0: int, x0g:int, y0g:int, z0g:int):
                                    other_distance[both_mask])
                 blending = np.sin(angle) ** 2
                 fraction[both_mask] *= blending
+            total += fraction
             block += (fraction * vblock).astype(block.dtype)
-
-    OUTPUT.write_block(block, x0-x0g, y0-y0g, z0-z0g)
+        block = block / (total + np.finfo(np.float32).eps)
+    OUTPUT.write_block(block.astype(OUTPUT.dtype), x0-x0g, y0-y0g, z0-z0g)
 
 
 def illum_correct(vblock, volume, y0, y1):

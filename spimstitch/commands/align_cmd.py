@@ -230,7 +230,10 @@ def calculate_alignments(key_a:typing.Tuple[float, float, float],
     points = np.concatenate(points, 0)
     dogs = np.concatenate(dogs)
     probs = dogs / np.sum(dogs)
-    idxs = r.choice(len(probs), opts.sample_count, replace=False, p=probs)
+    if len(probs) < opts.sample_count:
+        idxs = np.arange(len(probs))
+    else:
+        idxs = r.choice(len(probs), opts.sample_count, replace=False, p=probs)
     xs = points[idxs, 2]
     ys = points[idxs, 1]
     zs = points[idxs, 0]
@@ -421,7 +424,7 @@ def make_json_alignment_dict(overlaps:dict, opts):
         volume_a = VOLUMES[key_a]
         volume_b = VOLUMES[key_b]
         for d in value:
-            if key_a[2] != key_b[2]:
+            if key_a[0] != key_b[0]:
                 xa = d["xa"]
                 xb = d["xb"]
                 xpix = volume_a.x_relative(0) - volume_b.x_relative(0) + xb - xa

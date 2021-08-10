@@ -24,6 +24,11 @@ then
   echo "$RAW_PATH does not exist. Exiting."
   exit 1
 fi
+if [ -z "$SUBJECT" ];
+then
+  echo "Please define the SUBJECT environment variable"
+  exit 1
+fi
 STAIN=$2
 SAMPLE=$3
 if [ -z "$PSNR" ]; then export PSNR=80; fi
