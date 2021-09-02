@@ -4,6 +4,7 @@ class DCIMG:
 
     HEADER_SIZE = 728
     HEADER_SIZE_V1 = 832
+    HEADER_SIZE_V1A = 904
     PRE_HEADER_SIZE_V1 = 100
     PRE_HEADER_SIZE_V2 = 500
     COOKIE = b"DCIMG\0\0\0"
@@ -26,9 +27,9 @@ class DCIMG:
     OFFSET_RASTER_LENGTH = 20
     OFFSET_HEADER_END = 24 # file offset to first image header.
     #
-    # There is a 32-bit image header in front of every image
+    # There is an image header in front of every image
     #
-    IMG_HEADER_SIZE_V1=32
+    OFFSET_IMAGE_HEADER_SIZE = 31
 
     def __init__(self, path):
         self.path = path
@@ -50,8 +51,13 @@ class DCIMG:
                 self.img_header_size = ipre_header[DCIMG.PRE_OFFSET_HEADER_SIZE]
                 self.header_end = int_header[DCIMG.OFFSET_HEADER_END]
             else:
-                self.img_header_size = DCIMG.IMG_HEADER_SIZE_V1
-                self.header_end = DCIMG.HEADER_SIZE_V1 + len(DCIMG.COOKIE)
+                self.img_header_size = int_header[DCIMG.OFFSET_IMAGE_HEADER_SIZE]
+                if self.img_header_size == 16:
+                    # This is a hack... can't figure out where to read
+                    # the size of the header.
+                    self.header_end = DCIMG.HEADER_SIZE_V1A + len(DCIMG.COOKIE)
+                else:
+                    self.header_end = DCIMG.HEADER_SIZE_V1 + len(DCIMG.COOKIE)
         self.n_frames = int_header[DCIMG.OFFSET_N_FRAMES]
         self.bytes_per_pixel = int_header[DCIMG.OFFSET_N_BYTES_PER_PIXEL]
         self.n_channels = int_header[DCIMG.OFFSET_N_CHANNELS]
