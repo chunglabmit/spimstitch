@@ -137,7 +137,16 @@ def main(args=sys.argv[1:]):
                         logging.warning(
                             "Non-numeric Z found in stack path: %s" % root)
     all_z = sorted(set(zs))
-    z_offsets = [opts.z_offset * all_z.index(z) * opts.x_step_size for z in zs]
+    if opts.alignment is not None:
+        with open(opts.alignment) as fd:
+            align_z = json.load(fd)["align-z"]
+    else:
+        align_z = False
+
+    if align_z:
+        z_offsets = [z / 10 for z in zs]
+    else:
+        z_offsets = [opts.z_offset * all_z.index(z) * opts.x_step_size for z in zs]
     volumes = [
         StitchSrcVolume(volume_path,
                         opts.x_step_size,
