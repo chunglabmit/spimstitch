@@ -258,9 +258,9 @@ def write_sidecar(opts):
                   file=sys.stderr)
             sys.exit(1)
         sidecar["ChunkTransformMatrix"] = [
-            [ 1.0, 0., 0., z ],
-            [ 0., 1.0, 0., y ],
-            [ 0., 0., 1.0, x ],
+            [ 1.0, 0., 0., zoff ],
+            [ 0., 1.0, 0., yoff ],
+            [ 0., 0., 1.0, xoff ],
             [ 0., 0., 0., 1.0]
         ]
         sidecar["ChunkTransformMatrixAxis"] = ["Z", "Y", "X"]
