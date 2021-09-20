@@ -95,6 +95,10 @@ def build_write_sidecar_parser(subparsers):
         required=True
     )
     subparser.add_argument(
+        "--offset",
+        help="Offset for transform in the format, \"x, y, z\"."
+    )
+    subparser.add_argument(
         "--output",
         help="Name of the sidecar JSON file",
         required=True
@@ -223,10 +227,11 @@ def target_file(opts):
               file=sys.stderr)
         exit(-1)
     session_groups = tuple(match.groups())
+    session = "%sh%sm%ss%s" % session_groups
     dir_path = pathlib.Path("sub-%s" % opts.subject) / \
-               ("ses-%sh%sm%ss%s" % session_groups) / "microscopy"
-    name = "sub-%s_run-%s_sample-%s_stain-%s_chunk-%s_spim" % (
-        opts.subject, opts.run, opts.sample, opts.stain, opts.chunk
+               ("ses-%s" % session) / "microscopy"
+    name = "sub-%s_ses-%s_run-%s_sample-%s_stain-%s_chunk-%s_spim" % (
+        opts.subject, session, opts.run, opts.sample, opts.stain, opts.chunk
     )
     print(str(dir_path / name))
 
@@ -245,13 +250,29 @@ def write_sidecar(opts):
     sidecar["FieldOfView"] = [a * b for a, b in zip(reversed(ar.shape),
                                                     sidecar["PixelSize"])]
     sidecar["SampleStaining"] = opts.stain
+    if opts.offset:
+        try:
+            xoff, yoff, zoff = [float(_) for _ in opts.offset.split(",")]
+        except ValueError:
+            print("--offset flag must be in the format, \"x,y,z\".",
+                  file=sys.stderr)
+            sys.exit(1)
+        sidecar["ChunkTransformMatrix"] = [
+            [ 1.0, 0., 0., z ],
+            [ 0., 1.0, 0., y ],
+            [ 0., 0., 1.0, x ],
+            [ 0., 0., 0., 1.0]
+        ]
+        sidecar["ChunkTransformMatrixAxis"] = ["Z", "Y", "X"]
     with open(opts.output, "w") as fd:
         json.dump(sidecar, fd, indent=2)
+
 
 def get_xyz_from_path(key):
     z = int(key.stem)
     x, y = [int(_) for _ in key.parent.name.split("_")]
     return x, y, z
+
 
 def write_transform(opts):
     dcimg_files = opts.dcimg_files
@@ -271,9 +292,11 @@ def write_transform(opts):
     with open(opts.output, "w") as fd:
         json.dump([d], fd, indent=2)
 
+
 def order_dcimg_files_cmd(opts):
     all_paths = order_dcimg_files(opts.dcimg_files)
     print(" ".join([str(_) for _ in all_paths]))
+
 
 def order_dcimg_files(dcimg_files):
     def sortfn(key: pathlib.Path):
