@@ -202,10 +202,10 @@ def build_rewrite_transforms(subparsers):
         required=True
     )
     subparser.add_argument(
-        "transform_files",
+        "sidecar_files",
         nargs="*",
         default=[],
-        help="The transform files output by the write-transforms subcommand"
+        help="The sidecar files output by the write-sidecar subcommand"
     )
 
 def build_order_dcimg_files(subparsers):
@@ -269,15 +269,29 @@ def write_sidecar(opts):
     xi, yi, zi = get_xyz_from_path(pathlib.Path(opts.dcimg_input))
     xp, yp, zp = compute_offsets(opts, x0, xi, y0, yi, z0, zi)
 
-    sidecar["ChunkTransformMatrix"] = [
-        [ 1.0, 0., 0., xp ],
-        [ 0., 1.0, 0., yp ],
-        [ 0., 0., 1.0, zp ],
-        [ 0., 0., 0., 1.0]
-    ]
-    sidecar["ChunkTransformMatrixAxis"] = ["Z", "Y", "X"]
+    set_chunk_transform_matrix(sidecar, xp, yp, zp)
     with open(opts.output, "w") as fd:
         json.dump(sidecar, fd, indent=2)
+
+
+def set_chunk_transform_matrix(sidecar, xp, yp, zp):
+    sidecar["ChunkTransformMatrix"] = [
+        [1.0, 0., 0., zp],
+        [0., 1.0, 0., yp],
+        [0., 0., 1.0, xp],
+        [0., 0., 0., 1.0]
+    ]
+    sidecar["ChunkTransformMatrixAxis"] = ["Z", "Y", "X"]
+
+
+def get_chunk_transform_offsets(sidecar):
+    "Get offsets in z, y, x order"
+    ctma = sidecar["ChunkTransformMatrixAxis"]
+    idx_z = ctma.index("Z")
+    idx_y = ctma.index("Y")
+    idx_x = ctma.index("X")
+    matrix = sidecar["ChunkTransformMatrix"]
+    return matrix[idx_z][-1], matrix[idx_y][-1], matrix[idx_x][-1]
 
 
 def get_xyz_from_path(key):
@@ -340,23 +354,22 @@ def rewrite_transforms(opts):
                        in alignment["alignments"].items()])
     yum = opts.y_voxel_size
     xum = zum = yum / sqrt(2)
-    for transform_filename in opts.transform_files:
-        with open(transform_filename) as fd:
-            transform = json.load(fd)
-        x, y, z = [int(transform[0]["TransformationParameters"][key] * um)
-                   for key, um in
-                   (("XOffset", xum),
-                    ("YOffset", yum),
-                    ("ZOffset", zum))]
+    for sidecar_filename in opts.sidecar_files:
+        with open(sidecar_filename) as fd:
+            sidecar = json.load(fd)
+        z, y, x = get_chunk_transform_offsets(sidecar)
+        x, y, z = [int(offset * um)
+                   for offset, um in
+                   ((x, xum),
+                    (y, yum),
+                    (z, zum))]
         if (x, y, z) in alignments:
             new_x, new_y, new_z = [
                 offset / um for offset, um
                 in zip(alignments[x, y, z], (xum, yum, zum))]
-            transform[0]["TransformationParameters"]["XOffset"] = new_x
-            transform[0]["TransformationParameters"]["YOffset"] = new_y
-            transform[0]["TransformationParameters"]["ZOffset"] = new_z
-            with open(transform_filename, "w") as fd:
-                json.dump(transform, fd, indent=2)
+            set_chunk_transform_matrix(new_x, new_y, new_z)
+            with open(sidecar_filename, "w") as fd:
+                json.dump(sidecar, fd, indent=2)
 
 
 def main(args=sys.argv[1:]):

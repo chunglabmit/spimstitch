@@ -13,7 +13,7 @@ import tqdm
 from scipy import ndimage
 
 from ..stitch import StitchSrcVolume
-
+from dandi_metadata import get_chunk_transform_offsets
 
 def parse_args(args=sys.argv[1:]):
     parser = argparse.ArgumentParser()
@@ -310,9 +310,8 @@ def main(args=sys.argv[1:]):
                     "%s does not have a matching sidecar file" % str(path))
             with open(sidecar_path) as fd:
                 sidecar = json.load(fd)
-                matrix = sidecar["ChunkTransformMatrix"]
-                z, y, x = [matrix[i, -1] for i, um in
-                           zip(range(3), (zum, yum, xum))]
+                z, y, x = get_chunk_transform_offsets(sidecar)
+                x, y, z = x * xum, y * yum, z*zum
             volume = VOLUMES[x, y, z] = StitchSrcVolume(
                 str(path),
                 opts.x_step_size,
