@@ -301,19 +301,18 @@ def main(args=sys.argv[1:]):
     all_volumes = []
     for path in paths:
         if opts.ngff:
-            # The NGFF files should have matching _transforms files
+            # The NGFF files should have matching sidecar json
             # This file has the putative offset of each stack
             #
-            xfm_path = path.parent / (path.stem[:-4] + "transforms.json")
-            if not xfm_path.exists():
+            sidecar_path = path.parent / (path.stem + ".json")
+            if not sidecar_path.exists():
                 raise FileNotFoundError(
-                    "%s does not have a matching transforms file" % str(path))
-            with open(xfm_path) as fd:
-                xfm = json.load(fd)
-                x, y, z = [
-                    xfm[0]["TransformationParameters"][key] * um
-                    for key, um in
-                    (("XOffset", xum), ("YOffset", yum), ("ZOffset", zum))]
+                    "%s does not have a matching sidecar file" % str(path))
+            with open(sidecar_path) as fd:
+                sidecar = json.load(fd)
+                matrix = sidecar["ChunkTransformMatrix"]
+                z, y, x = [matrix[i, -1] for i, um in
+                           zip(range(3), (zum, yum, xum))]
             volume = VOLUMES[x, y, z] = StitchSrcVolume(
                 str(path),
                 opts.x_step_size,

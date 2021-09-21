@@ -131,6 +131,8 @@ do
 	  --volume-format ngff \
 	  --stain "$STAIN" \
 	  --output "$sidecar_path"
+	  --dcimg-input "$DCIMG_PATH"
+	  $ALL_DCIMGS
 	#
 	# At this point, the dcimg file could be deleted... not yet though
 	#

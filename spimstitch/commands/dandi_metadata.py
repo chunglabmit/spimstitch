@@ -95,13 +95,20 @@ def build_write_sidecar_parser(subparsers):
         required=True
     )
     subparser.add_argument(
-        "--offset",
-        help="Offset for transform in the format, \"x, y, z\"."
-    )
+        "--dcimg-input",
+        help="The path to the DCIMG file being converted",
+        required=True)
     subparser.add_argument(
         "--output",
         help="Name of the sidecar JSON file",
         required=True
+    )
+    subparser.add_argument(
+        "dcimg_files",
+        nargs="*",
+        default=[],
+        help="The remainder of the files should include all of the "
+             "DCIMG files in the volume"
     )
 
 
@@ -250,20 +257,19 @@ def write_sidecar(opts):
     sidecar["FieldOfView"] = [a * b for a, b in zip(reversed(ar.shape),
                                                     sidecar["PixelSize"])]
     sidecar["SampleStaining"] = opts.stain
-    if opts.offset:
-        try:
-            xoff, yoff, zoff = [float(_) for _ in opts.offset.split(",")]
-        except ValueError:
-            print("--offset flag must be in the format, \"x,y,z\".",
-                  file=sys.stderr)
-            sys.exit(1)
-        sidecar["ChunkTransformMatrix"] = [
-            [ 1.0, 0., 0., zoff ],
-            [ 0., 1.0, 0., yoff ],
-            [ 0., 0., 1.0, xoff ],
-            [ 0., 0., 0., 1.0]
-        ]
-        sidecar["ChunkTransformMatrixAxis"] = ["Z", "Y", "X"]
+    dcimg_files = opts.dcimg_files
+    all_paths = order_dcimg_files(dcimg_files)
+    x0, y0, z0 = get_xyz_from_path(all_paths[0])
+    xi, yi, zi = get_xyz_from_path(pathlib.Path(opts.dcimg_input))
+    xp, yp, zp = compute_offsets(opts, x0, xi, y0, yi, z0, zi)
+
+    sidecar["ChunkTransformMatrix"] = [
+        [ 1.0, 0., 0., xp ],
+        [ 0., 1.0, 0., yp ],
+        [ 0., 0., 1.0, zp ],
+        [ 0., 0., 0., 1.0]
+    ]
+    sidecar["ChunkTransformMatrixAxis"] = ["Z", "Y", "X"]
     with open(opts.output, "w") as fd:
         json.dump(sidecar, fd, indent=2)
 
@@ -279,9 +285,7 @@ def write_transform(opts):
     all_paths = order_dcimg_files(dcimg_files)
     x0, y0, z0 = get_xyz_from_path(all_paths[0])
     xi, yi, zi = get_xyz_from_path(pathlib.Path(opts.input))
-    xp = (xi - x0) * sqrt(2) / 10 / opts.y_voxel_size
-    yp = (yi - y0) / 10 / opts.y_voxel_size
-    zp = (zi - z0) * sqrt(2) / 10 / opts.y_voxel_size
+    xp, yp, zp = compute_offsets(opts, x0, xi, y0, yi, z0, zi)
     d = dict(
         SourceReferenceFrame="original",
         TargetReferenceFrame=opts.target_reference_frame,
@@ -291,6 +295,13 @@ def write_transform(opts):
         )
     with open(opts.output, "w") as fd:
         json.dump([d], fd, indent=2)
+
+
+def compute_offsets(opts, x0, xi, y0, yi, z0, zi):
+    xp = (xi - x0) * sqrt(2) / 10 / opts.y_voxel_size
+    yp = (yi - y0) / 10 / opts.y_voxel_size
+    zp = (zi - z0) * sqrt(2) / 10 / opts.y_voxel_size
+    return xp, yp, zp
 
 
 def order_dcimg_files_cmd(opts):
