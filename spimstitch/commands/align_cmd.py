@@ -13,7 +13,7 @@ import tqdm
 from scipy import ndimage
 
 from ..stitch import StitchSrcVolume
-from dandi_metadata import get_chunk_transform_offsets
+from .dandi_metadata import get_chunk_transform_offsets
 
 def parse_args(args=sys.argv[1:]):
     parser = argparse.ArgumentParser()
