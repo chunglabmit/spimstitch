@@ -95,6 +95,12 @@ def build_write_sidecar_parser(subparsers):
         required=True
     )
     subparser.add_argument(
+        "--y-voxel-size",
+        help="The size of a voxel in microns",
+        default=1.8,
+        type=float
+    )
+    subparser.add_argument(
         "--dcimg-input",
         help="The path to the DCIMG file being converted",
         required=True)

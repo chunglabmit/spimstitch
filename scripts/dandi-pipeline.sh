@@ -130,8 +130,9 @@ do
 	  --volume "$volume_path" \
 	  --volume-format ngff \
 	  --stain "$STAIN" \
-	  --output "$sidecar_path"
-	  --dcimg-input "$DCIMG_PATH"
+	  --y-voxel-size $Y_VOXEL_SIZE \
+	  --dcimg-input "$DCIMG_PATH" \
+	  --output "$sidecar_path" \
 	  $ALL_DCIMGS
 	#
 	# At this point, the dcimg file could be deleted... not yet though
