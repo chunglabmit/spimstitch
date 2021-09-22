@@ -95,9 +95,26 @@ def build_write_sidecar_parser(subparsers):
         required=True
     )
     subparser.add_argument(
+        "--y-voxel-size",
+        help="The size of a voxel in microns",
+        default=1.8,
+        type=float
+    )
+    subparser.add_argument(
+        "--dcimg-input",
+        help="The path to the DCIMG file being converted",
+        required=True)
+    subparser.add_argument(
         "--output",
         help="Name of the sidecar JSON file",
         required=True
+    )
+    subparser.add_argument(
+        "dcimg_files",
+        nargs="*",
+        default=[],
+        help="The remainder of the files should include all of the "
+             "DCIMG files in the volume"
     )
 
 
@@ -185,10 +202,10 @@ def build_rewrite_transforms(subparsers):
         required=True
     )
     subparser.add_argument(
-        "transform_files",
+        "sidecar_files",
         nargs="*",
         default=[],
-        help="The transform files output by the write-transforms subcommand"
+        help="The sidecar files output by the write-sidecar subcommand"
     )
 
 def build_order_dcimg_files(subparsers):
@@ -223,10 +240,11 @@ def target_file(opts):
               file=sys.stderr)
         exit(-1)
     session_groups = tuple(match.groups())
+    session = "%sh%sm%ss%s" % session_groups
     dir_path = pathlib.Path("sub-%s" % opts.subject) / \
-               ("ses-%sh%sm%ss%s" % session_groups) / "microscopy"
-    name = "sub-%s_run-%s_sample-%s_stain-%s_chunk-%s_spim" % (
-        opts.subject, opts.run, opts.sample, opts.stain, opts.chunk
+               ("ses-%s" % session) / "microscopy"
+    name = "sub-%s_ses-%s_run-%s_sample-%s_stain-%s_chunk-%s_spim" % (
+        opts.subject, session, opts.run, opts.sample, opts.stain, opts.chunk
     )
     print(str(dir_path / name))
 
@@ -245,22 +263,49 @@ def write_sidecar(opts):
     sidecar["FieldOfView"] = [a * b for a, b in zip(reversed(ar.shape),
                                                     sidecar["PixelSize"])]
     sidecar["SampleStaining"] = opts.stain
+    dcimg_files = opts.dcimg_files
+    all_paths = order_dcimg_files(dcimg_files)
+    x0, y0, z0 = get_xyz_from_path(all_paths[0])
+    xi, yi, zi = get_xyz_from_path(pathlib.Path(opts.dcimg_input))
+    xp, yp, zp = compute_offsets(opts, x0, xi, y0, yi, z0, zi)
+
+    set_chunk_transform_matrix(sidecar, xp, yp, zp)
     with open(opts.output, "w") as fd:
         json.dump(sidecar, fd, indent=2)
+
+
+def set_chunk_transform_matrix(sidecar, xp, yp, zp):
+    sidecar["ChunkTransformMatrix"] = [
+        [1.0, 0., 0., zp],
+        [0., 1.0, 0., yp],
+        [0., 0., 1.0, xp],
+        [0., 0., 0., 1.0]
+    ]
+    sidecar["ChunkTransformMatrixAxis"] = ["Z", "Y", "X"]
+
+
+def get_chunk_transform_offsets(sidecar):
+    "Get offsets in z, y, x order"
+    ctma = sidecar["ChunkTransformMatrixAxis"]
+    idx_z = ctma.index("Z")
+    idx_y = ctma.index("Y")
+    idx_x = ctma.index("X")
+    matrix = sidecar["ChunkTransformMatrix"]
+    return matrix[idx_z][-1], matrix[idx_y][-1], matrix[idx_x][-1]
+
 
 def get_xyz_from_path(key):
     z = int(key.stem)
     x, y = [int(_) for _ in key.parent.name.split("_")]
     return x, y, z
 
+
 def write_transform(opts):
     dcimg_files = opts.dcimg_files
     all_paths = order_dcimg_files(dcimg_files)
     x0, y0, z0 = get_xyz_from_path(all_paths[0])
     xi, yi, zi = get_xyz_from_path(pathlib.Path(opts.input))
-    xp = (xi - x0) * sqrt(2) / 10 / opts.y_voxel_size
-    yp = (yi - y0) / 10 / opts.y_voxel_size
-    zp = (zi - z0) * sqrt(2) / 10 / opts.y_voxel_size
+    xp, yp, zp = compute_offsets(opts, x0, xi, y0, yi, z0, zi)
     d = dict(
         SourceReferenceFrame="original",
         TargetReferenceFrame=opts.target_reference_frame,
@@ -271,9 +316,18 @@ def write_transform(opts):
     with open(opts.output, "w") as fd:
         json.dump([d], fd, indent=2)
 
+
+def compute_offsets(opts, x0, xi, y0, yi, z0, zi):
+    xp = (xi - x0) * sqrt(2) / 10 / opts.y_voxel_size
+    yp = (yi - y0) / 10 / opts.y_voxel_size
+    zp = (zi - z0) * sqrt(2) / 10 / opts.y_voxel_size
+    return xp, yp, zp
+
+
 def order_dcimg_files_cmd(opts):
     all_paths = order_dcimg_files(opts.dcimg_files)
     print(" ".join([str(_) for _ in all_paths]))
+
 
 def order_dcimg_files(dcimg_files):
     def sortfn(key: pathlib.Path):
@@ -300,23 +354,22 @@ def rewrite_transforms(opts):
                        in alignment["alignments"].items()])
     yum = opts.y_voxel_size
     xum = zum = yum / sqrt(2)
-    for transform_filename in opts.transform_files:
-        with open(transform_filename) as fd:
-            transform = json.load(fd)
-        x, y, z = [int(transform[0]["TransformationParameters"][key] * um)
-                   for key, um in
-                   (("XOffset", xum),
-                    ("YOffset", yum),
-                    ("ZOffset", zum))]
+    for sidecar_filename in opts.sidecar_files:
+        with open(sidecar_filename) as fd:
+            sidecar = json.load(fd)
+        z, y, x = get_chunk_transform_offsets(sidecar)
+        x, y, z = [int(offset * um)
+                   for offset, um in
+                   ((x, xum),
+                    (y, yum),
+                    (z, zum))]
         if (x, y, z) in alignments:
             new_x, new_y, new_z = [
                 offset / um for offset, um
                 in zip(alignments[x, y, z], (xum, yum, zum))]
-            transform[0]["TransformationParameters"]["XOffset"] = new_x
-            transform[0]["TransformationParameters"]["YOffset"] = new_y
-            transform[0]["TransformationParameters"]["ZOffset"] = new_z
-            with open(transform_filename, "w") as fd:
-                json.dump(transform, fd, indent=2)
+            set_chunk_transform_matrix(new_x, new_y, new_z)
+            with open(sidecar_filename, "w") as fd:
+                json.dump(sidecar, fd, indent=2)
 
 
 def main(args=sys.argv[1:]):

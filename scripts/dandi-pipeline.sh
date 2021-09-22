@@ -130,15 +130,9 @@ do
 	  --volume "$volume_path" \
 	  --volume-format ngff \
 	  --stain "$STAIN" \
-	  --output "$sidecar_path"
-	#
-	# Write the transform file
-	#
-	dandi-metadata write-transform \
-	  --input "$DCIMG_PATH" \
-	  --output "$transform_path" \
-	  --y-voxel-size "$Y_VOXEL_SIZE" \
-	  --target-reference-frame slab"$SAMPLE" \
+	  --y-voxel-size $Y_VOXEL_SIZE \
+	  --dcimg-input "$DCIMG_PATH" \
+	  --output "$sidecar_path" \
 	  $ALL_DCIMGS
 	#
 	# At this point, the dcimg file could be deleted... not yet though
@@ -163,16 +157,16 @@ else
       --sample-count 250 \
       --window-size 51,51,51
   fi
-  transform_wildcard=$(basename $(dandi-metadata target-file \
+  sidecar_wildcard=$(basename $(dandi-metadata target-file \
     --subject $SUBJECT \
     --sample $SAMPLE \
     --source-path $(dirname $RAW_PATH) \
     --stain $STAIN \
     --chunk "*" ))
-  transform_wildcard=${transform_wildcard::-4}transforms.json
-  ALL_TRANSFORM_FILES=$(find $(dirname "$target_name") -name $transform_wildcard)
+  sidecard_wildcard=${sidecar_wildcard::-4}transforms.json
+  ALL_SIDECAR_FILES=$(find $(dirname "$target_name") -name $sidecar_wildcard)
   dandi-metadata rewrite-transforms \
       --align-file "$ALIGN_FILE" \
       --y-voxel-size $Y_VOXEL_SIZE \
-      $ALL_TRANSFORM_FILES
+      $ALL_SIDECAR_FILES
 fi
