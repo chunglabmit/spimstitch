@@ -479,6 +479,8 @@ def make_json_alignment_dict(overlaps:dict, opts):
         json_overlaps["alignments"] = alignments
     if opts.align_xz:
         json_overlaps["align-z"] = True
+    else:
+        json_overlaps["align-z"] = False
     return json_overlaps
 
 
