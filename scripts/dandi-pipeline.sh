@@ -33,7 +33,7 @@ STAIN=$2
 SAMPLE=$3
 if [ -z "$PSNR" ]; then export PSNR=80; fi
 if [ -z "$TEMPLATE" ]; then
-  TEMPLATE=/media/share10/lee/data/2021-01-24_150slab/dataset/sub-mgh191021520/ses-20210124/microscopy/sub-mgh191021520_ses-20210124_sample-150slab_SPIM.json
+  TEMPLATE=/mnt/beegfs/Lee/dandi/template.json
 fi
 METADATA_FILE=$(dirname "$RAW_PATH")/metadata.txt
 X_STEP_SIZE=$(dandi-metadata get-x-step-size "$METADATA_FILE")

@@ -20,13 +20,30 @@
 set -e
 export channel=$1
 
-if [ -z "$X_STEP_SIZE" ]; then export X_STEP_SIZE=1.28; fi
-if [ -z "$Y_VOXEL_SIZE" ]; then export Y_VOXEL_SIZE=1.8; fi
+if [ -z "$X_STEP_SIZE" ]; then
+  # Get X_STEP_SIZE from metadata file (2nd line, fourth field
+  export X_STEP_SIZE=$(cat metadata.txt | head -2 | tail -1 | cut -f 4);
+fi
+if [ -z "$Y_VOXEL_SIZE" ]; then
+  export Y_VOXEL_SIZE=$(cat metadata.txt | head -2 | tail -1 | cut -f 3);
+fi
 if [ -z "$Z_OFFSET" ]; then export Z_OFFSET=2048; fi
 if [ -z "$BACKGROUND" ]; then export BACKGROUND=100; fi
 if [ -z "$PSNR" ]; then export PSNR=80; fi
 if [ -z "$WORKERS" ]; then export WORKERS=48; fi
 if [ -z "$DONT_CLEANUP_INTERMEDIATES" ]; then export CLEANUP_INTERMEDIATES=1; fi
+
+echo "--- JP2K SPIMSTITCH PARAMETERS ---"
+echo "    PWD=$(pwd)"
+echo "    CHANNEL=$channel"
+echo "    X_STEP_SIZE=$X_STEP_SIZE"
+echo "    Y_VOXEL_SIZE=$Y_VOXEL_SIZE"
+echo "    ALIGN_FILE=$ALIGN_FILE"
+echo "    ILLUM_CORR=$ILLUM_CORR"
+echo "    USE_WAVELETS=$USE_WAVELETS"
+echo "    ALIGN_XZ=$ALIGN_XZ"
+echo "-----------------------------------"
+echo
 if [ -z "$ILLUM_CORR" ]; then
   ILLUM_CORR="$channel"-illuc.tiff
   oblique-illum-corr \

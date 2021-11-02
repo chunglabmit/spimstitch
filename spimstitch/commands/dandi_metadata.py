@@ -250,8 +250,9 @@ def target_file(opts):
 
 
 def write_sidecar(opts):
-    with open(opts.template) as fd:
-        sidecar = json.load(fd)
+    template_path = pathlib.Path(opts.template)
+    with template_path.open() as fd:
+        sidecar:dict = json.load(fd)
     volume_path = pathlib.Path(opts.volume)
     ar = ArrayReader(volume_path.as_uri(), format=opts.volume_format)
     if opts.metadata_file is None:
@@ -263,6 +264,11 @@ def write_sidecar(opts):
     sidecar["FieldOfView"] = [a * b for a, b in zip(reversed(ar.shape),
                                                     sidecar["PixelSize"])]
     sidecar["SampleStaining"] = opts.stain
+    stain_template_path = \
+        template_path.parent / (template_path.stem + ".%s.json" % opts.stain)
+    if stain_template_path.exists():
+        with stain_template_path.open() as fd:
+            sidecar.update(json.load(fd))
     dcimg_files = opts.dcimg_files
     all_paths = order_dcimg_files(dcimg_files)
     x0, y0, z0 = get_xyz_from_path(all_paths[0])
