@@ -119,6 +119,7 @@ do
 	     --destripe-method wavelet --sigma1 128 --sigma2 512 --wavelet db5 --crossover 10 \
 	     --flat $ILLUM_CORR --dark 100 \
 	    --levels 7 \
+	    --y-voxel-size $Y_VOXEL_SIZE \
 	    --jp2k \
 	    --ngff
 	#
@@ -163,7 +164,7 @@ else
     --source-path $(dirname $RAW_PATH) \
     --stain $STAIN \
     --chunk "*" ))
-  sidecard_wildcard=${sidecar_wildcard::-4}transforms.json
+  sidecard_wildcard="$sidecar_wildcard".json
   ALL_SIDECAR_FILES=$(find $(dirname "$target_name") -name $sidecar_wildcard)
   dandi-metadata rewrite-transforms \
       --align-file "$ALIGN_FILE" \

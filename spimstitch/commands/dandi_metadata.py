@@ -364,10 +364,8 @@ def rewrite_transforms(opts):
                     (y, yum),
                     (z, zum))]
         if (x, y, z) in alignments:
-            new_x, new_y, new_z = [
-                offset / um for offset, um
-                in zip(alignments[x, y, z], (xum, yum, zum))]
-            set_chunk_transform_matrix(new_x, new_y, new_z)
+            new_x, new_y, new_z = alignments[x, y, z]
+            set_chunk_transform_matrix(sidecar, new_x, new_y, new_z)
             with open(sidecar_filename, "w") as fd:
                 json.dump(sidecar, fd, indent=2)
 

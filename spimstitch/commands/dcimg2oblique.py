@@ -57,6 +57,12 @@ def parse_args(args=sys.argv[1:]):
         type=int
     )
     parser.add_argument(
+        "--y-voxel-size",
+        help="Y voxel size in microns",
+        type=float,
+        default=3.625
+    )
+    parser.add_argument(
         "--n-workers",
         help="Number of worker processes to use during reading and destriping.",
         default=multiprocessing.cpu_count(),
@@ -261,7 +267,12 @@ def main(args=sys.argv[1:]):
     else:
         bfs_stack = BlockfsStack((z_extent, y_extent, x_extent),
                                  MY_OPTS.output)
-    bfs_stack.write_info_file(MY_OPTS.levels)
+    y_voxel_size = MY_OPTS.y_voxel_size
+    xz_voxel_size = y_voxel_size / np.sqrt(2)
+    voxel_size = int(xz_voxel_size * 1000),\
+        int(y_voxel_size * 1000), \
+        int(xz_voxel_size * 1000)
+    bfs_stack.write_info_file(MY_OPTS.levels, voxel_size)
     if MY_OPTS.ngff:
         directory = NGFFDirectory(bfs_stack)
         directory.create()
