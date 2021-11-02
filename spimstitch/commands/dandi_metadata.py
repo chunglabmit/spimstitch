@@ -275,16 +275,17 @@ def write_sidecar(opts):
     xi, yi, zi = get_xyz_from_path(pathlib.Path(opts.dcimg_input))
     xp, yp, zp = compute_offsets(opts, x0, xi, y0, yi, z0, zi)
 
-    set_chunk_transform_matrix(sidecar, xp, yp, zp)
+    set_chunk_transform_matrix(sidecar, xp, yp, zp,
+                               x_step_size, y_voxel_size, x_step_size)
     with open(opts.output, "w") as fd:
         json.dump(sidecar, fd, indent=2)
 
 
-def set_chunk_transform_matrix(sidecar, xp, yp, zp):
+def set_chunk_transform_matrix(sidecar, xp, yp, zp, xum, yum, zum):
     sidecar["ChunkTransformMatrix"] = [
-        [1.0, 0., 0., zp],
-        [0., 1.0, 0., yp],
-        [0., 0., 1.0, xp],
+        [zum, 0., 0., zp],
+        [0., yum, 0., yp],
+        [0., 0., xum, xp],
         [0., 0., 0., 1.0]
     ]
     sidecar["ChunkTransformMatrixAxis"] = ["Z", "Y", "X"]
@@ -371,7 +372,8 @@ def rewrite_transforms(opts):
                     (z, zum))]
         if (x, y, z) in alignments:
             new_x, new_y, new_z = alignments[x, y, z]
-            set_chunk_transform_matrix(sidecar, new_x, new_y, new_z)
+            set_chunk_transform_matrix(sidecar, new_x, new_y, new_z,
+                                       xum, yum, zum)
             with open(sidecar_filename, "w") as fd:
                 json.dump(sidecar, fd, indent=2)
 
