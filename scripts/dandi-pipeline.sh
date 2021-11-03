@@ -165,7 +165,7 @@ else
     --stain $STAIN \
     --chunk "*" ))
   sidecard_wildcard="$sidecar_wildcard".json
-  ALL_SIDECAR_FILES=$(find $(dirname "$target_name") -name $sidecar_wildcard)
+  ALL_SIDECAR_FILES=$(find $(dirname "$target_name") -maxdepth 1 -name $sidecar_wildcard)
   dandi-metadata rewrite-transforms \
       --align-file "$ALIGN_FILE" \
       --y-voxel-size $Y_VOXEL_SIZE \
