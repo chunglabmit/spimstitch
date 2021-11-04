@@ -146,9 +146,17 @@ else
     ALIGN_FILE="$RAW_PATH"-align.json
   fi
   if [ ! -f $ALIGN_FILE ]; then
+    $ngff_wildcard=$(basename $(dandi-metadata target-file \
+        --subject $SUBJECT \
+        --sample $SAMPLE \
+        --source-path $(dirname $RAW_PATH) \
+        --stain $STAIN \
+        --chunk "*" \
+    ))".ngff"
     oblique-align \
       --ngff \
       --input $(dirname "$target_name") \
+      --pattern $ngff_wildcard \
       --output $ALIGN_FILE \
       --voxel-size $Y_VOXEL_SIZE \
       --x-step-size $X_STEP_SIZE \

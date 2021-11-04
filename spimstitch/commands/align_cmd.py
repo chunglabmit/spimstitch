@@ -23,6 +23,10 @@ def parse_args(args=sys.argv[1:]):
         required=True
     )
     parser.add_argument(
+        "--pattern",
+        help="If present, the glob pattern for the volume files"
+    )
+    parser.add_argument(
         "--output",
         help="Name of the .json output file containing the alignment"
     )
@@ -282,12 +286,16 @@ def main(args=sys.argv[1:]):
     # Collect the stacks. These are in the format
     # opts.input/X/X_Y/Z/1_1_1/precomputed.blockfs
     #
+    if opts.pattern is None:
+        pattern = "**"
+    else:
+        pattern = opts.pattern
     if not opts.ngff:
         paths = sorted(pathlib.Path(opts.input)
-                       .glob("**/1_1_1/precomputed.blockfs"))
+                   .glob(f"{pattern}/1_1_1/precomputed.blockfs"))
     else:
         paths = [path.parent for path in
-                 sorted(pathlib.Path(opts.input).glob("**/.zgroup"))]
+                 sorted(pathlib.Path(opts.input).glob(f"{pattern}/.zgroup"))]
     if len(paths) == 0:
         print("There are no precomputed.blockfs files in the path, %s" %
               opts.input)
