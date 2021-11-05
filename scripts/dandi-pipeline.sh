@@ -17,6 +17,7 @@
 # $TEMPLATE - the JSON template for the sidecars
 # $JP2K_ROOT - place to put JPEG 2000 files.
 # $ALIGN_FILE - the output of the oblique-align command from a previous channel or not present to calculate it
+# $ALIGN_XZ - if defined, align in the X and Z direction as well
 #
 RAW_PATH=$1
 if [ ! -d "$RAW_PATH" ];
@@ -146,6 +147,10 @@ else
     ALIGN_FILE="$RAW_PATH"-align.json
   fi
   if [ ! -f $ALIGN_FILE ]; then
+    if [ ! -d "$ALIGN_XZ" ];
+    then
+      ALIGN_EXTRAS=--align-xz
+    fi
     ngff_wildcard=$(basename $(dandi-metadata target-file \
         --subject $SUBJECT \
         --sample $SAMPLE \
@@ -164,7 +169,8 @@ else
       --n-cores "$N_WORKERS" \
       --sigma 10 \
       --sample-count 250 \
-      --window-size 51,51,51
+      --window-size 51,51,51 \
+      $ALIGN_EXTRAS
   fi
   sidecar_wildcard=$(basename $(dandi-metadata target-file \
     --subject $SUBJECT \
