@@ -15,8 +15,14 @@
 set -e
 export channel=$1
 
-if [ -z "$X_STEP_SIZE" ]; then export X_STEP_SIZE=1.28; fi
-if [ -z "$Y_VOXEL_SIZE" ]; then export Y_VOXEL_SIZE=1.8; fi
+if [ -z "$X_STEP_SIZE" ];
+then
+  export X_STEP_SIZE=$(dandi-metadata get-x-step-size metadata.txt);
+fi
+if [ -z "$Y_VOXEL_SIZE" ];
+then
+  export Y_VOXEL_SIZE=$(dandi-metadata get-y-voxel-size metadata.txt);
+fi
 if [ -z "$Z_OFFSET" ]; then export Z_OFFSET=2048; fi
 if [ -z "$BACKGROUND" ]; then export BACKGROUND=100; fi
 if [ -z "$ILLUM_CORR" ]; then
