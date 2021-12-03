@@ -66,7 +66,7 @@ fi
 
 set -x
 ALL_DCIMGS=`find $channel -name "*.dcimg"`
-if [ `echo ALL_DCIMGS | wc -w` != "0" ]; then
+if [ `echo $ALL_DCIMGS | wc -w` != "0" ]; then
   export DCIMG2JPEG2000=1
 else
   export DCIMG2JPEG2000=0
@@ -75,7 +75,7 @@ fi
 #
 # test for single directory
 #
-if [ `echo $ALL_DCIMGS` == "0" ]; then
+if [ `echo $ALL_DCIMGS | wc -w` == "0" ]; then
   export SINGLE_CHANNEL=1
   export SINGLE_X=`ls $channel`
   export SINGLE_XY=`ls $channel/"$SINGLE_X"`
