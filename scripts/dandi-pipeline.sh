@@ -172,13 +172,12 @@ else
       --window-size 51,51,51 \
       $ALIGN_EXTRAS
   fi
-  sidecar_wildcard=$(basename $(dandi-metadata target-file \
+  sidecar_wildcard="$(basename $(dandi-metadata target-file \
     --subject $SUBJECT \
     --sample $SAMPLE \
-    --source-path $(dirname $RAW_PATH) \
+    --source-path $(dirname "$RAW_PATH") \
     --stain $STAIN \
-    --chunk "*" ))
-  sidecard_wildcard="$sidecar_wildcard".json
+    --chunk "*" ))".json
   ALL_SIDECAR_FILES=$(find $(dirname "$target_name") -maxdepth 1 -name "$sidecar_wildcard")
   dandi-metadata rewrite-transforms \
       --align-file "$ALIGN_FILE" \
