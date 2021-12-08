@@ -349,7 +349,10 @@ def order_dcimg_files(dcimg_files):
 def get_sizes(metadata_path):
     lines = [line.strip() for line in open(metadata_path, encoding="latin1")]
     fields = lines[1].split("\t")
-    x_step_size = float(fields[5])
+    if len(fields[4]) == 0:
+        x_step_size = float(fields[5])
+    else:
+        x_step_size = float(fields[4])
     y_voxel_size = float(fields[2])
     return x_step_size, y_voxel_size
 
