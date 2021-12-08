@@ -44,7 +44,9 @@ class TestOblique(unittest.TestCase):
     def test_pipeline(self):
         with make_case((128, 16, 16), (4, 4, 4)) as (paths, directory, volume):
             stack = SpimStack(paths, 0, 0, 16, 16, 0)
-            spim_to_blockfs(stack, directory, 1)
+            spim_to_blockfs(stack, directory, 1,
+                            voxel_size=3.625,
+                            x_step_size=3.625 / (2.0 ** .5))
             directory.close()
             block = directory.read_block(0, 0, 0)
             np.testing.assert_array_equal(block[3, :, :3], 0)

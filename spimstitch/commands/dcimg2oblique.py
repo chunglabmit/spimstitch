@@ -57,6 +57,12 @@ def parse_args(args=sys.argv[1:]):
         type=int
     )
     parser.add_argument(
+        "--x-step-size",
+        help="X step size in microns",
+        type="float",
+        default = float(3.625 / np.sqrt(2))
+    )
+    parser.add_argument(
         "--y-voxel-size",
         help="Y voxel size in microns",
         type=float,
@@ -177,6 +183,7 @@ MY_DCIMG:DCIMG = None
 MY_OPTS = None
 FLAT:np.ndarray = None
 
+
 def do_one_dcimg(sidx:str) -> np.ndarray:
     img = MY_DCIMG.read_frame(int(sidx))
     img = do_one(img)
@@ -269,7 +276,8 @@ def main(args=sys.argv[1:]):
                                  MY_OPTS.output)
     y_voxel_size = MY_OPTS.y_voxel_size
     xz_voxel_size = y_voxel_size / np.sqrt(2)
-    voxel_size = int(xz_voxel_size * 1000),\
+    x_step_size = MY_OPTS.x_step_size
+    voxel_size = int(x_step_size * 1000),\
         int(y_voxel_size * 1000), \
         int(xz_voxel_size * 1000)
     bfs_stack.write_info_file(MY_OPTS.levels, voxel_size)
@@ -290,6 +298,8 @@ def main(args=sys.argv[1:]):
         directory.create()
         directory.start_writer_processes()
     spim_to_blockfs(stack, directory, MY_OPTS.n_workers,
+                    voxel_size=voxel_size,
+                    x_step_size=x_step_size,
                     read_fn=fn)
     for level in range(2, MY_OPTS.levels+1):
         bfs_stack.write_level_n(level, n_cores=MY_OPTS.n_writers)
