@@ -22,7 +22,7 @@ export channel=$1
 
 if [ -z "$X_STEP_SIZE" ]; then
   # Get X_STEP_SIZE from metadata file (2nd line, fourth field
-  export X_STEP_SIZE=$(cat metadata.txt | head -2 | tail -1 | cut -f 4);
+  export X_STEP_SIZE=$(cat metadata.txt | head -2 | tail -1 | cut -f 6);
 fi
 if [ -z "$Y_VOXEL_SIZE" ]; then
   export Y_VOXEL_SIZE=$(cat metadata.txt | head -2 | tail -1 | cut -f 3);
