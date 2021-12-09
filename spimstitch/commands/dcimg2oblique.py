@@ -59,8 +59,8 @@ def parse_args(args=sys.argv[1:]):
     parser.add_argument(
         "--x-step-size",
         help="X step size in microns",
-        type="float",
-        default = float(3.625 / np.sqrt(2))
+        type=float,
+        default = 3.625 / (2 ** .5)
     )
     parser.add_argument(
         "--y-voxel-size",
