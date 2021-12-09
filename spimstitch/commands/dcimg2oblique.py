@@ -298,7 +298,7 @@ def main(args=sys.argv[1:]):
         directory.create()
         directory.start_writer_processes()
     spim_to_blockfs(stack, directory, MY_OPTS.n_workers,
-                    voxel_size=voxel_size,
+                    voxel_size=y_voxel_size,
                     x_step_size=x_step_size,
                     read_fn=fn)
     for level in range(2, MY_OPTS.levels+1):
