@@ -193,7 +193,7 @@ def main(args=sys.argv[1:]):
         output = BlockfsStack((zs, ys, xs), opts.output)
     voxel_size = (opts.x_step_size * 1000,
                   opts.y_voxel_size * 1000,
-                  opts.x_step_size * 1000)
+                  opts.y_voxel_size / np.sqrt(2) * 1000)
     output.write_info_file(opts.levels, voxel_size)
     if opts.ngff:
         directory = NGFFDirectory(output)
