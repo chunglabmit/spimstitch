@@ -45,7 +45,7 @@ class StitchSrcVolume:
         else:
             self.directory = Directory.open(path)
         self.xum = x_step_size
-        self.zum = x_step_size
+        self.zum = yum / np.sqrt(2)
         self.yum = yum
         if x0 is None and y0 is None:
             z_metadata_dir = os.path.dirname(os.path.dirname(path))
