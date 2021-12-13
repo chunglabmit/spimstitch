@@ -167,10 +167,11 @@ class StitchSrcVolume:
             # The corner cases z > x and
             # trailing - x > z
             #
-            if x1_relative < z0_relative:
+            if x1_relative * self.xum < z0_relative * self.zum:
                 return False # top corner of block is below the leading oblique
             # bottom corner of block is above the trailing oblique
-            return self.directory.x_extent - x0_relative > z0_relative
+            return (self.directory.x_extent - x0_relative) * self.xum > \
+                   z0_relative * self.zum
         else:
             return True
 
