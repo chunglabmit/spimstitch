@@ -234,10 +234,13 @@ def adjust_alignments(opts, volumes:typing.Sequence[StitchSrcVolume]):
         for volume in volumes:
             k = (volume.x0, volume.y0)
             if k in alignments:
+                xa, ya, za = alignments[k]
                 if align_z:
-                    volume.x0, volume.y0, volume.z0 = alignments[k]
+                    # TODO - do separate alignments per z
+                    za += volume.z0
+                    volume.x0, volume.y0, volume.z0 = xa, ya, za
                 else:
-                    volume.x0, volume.y0, _ = alignments[k]
+                    volume.x0, volume.y0 = xa, ya
         return align_z
 
 
