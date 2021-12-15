@@ -311,7 +311,10 @@ class StitchSrcVolume:
         z, y, x = np.mgrid[z0r:z1r, y0r:y1r, x0r:x1r]
 
         if self.is_oblique:
-            mask = (x >= z) & (x - self.trailing_oblique_start < z)
+            x_in_um = x * self.xum
+            xend_in_um = (x - self.trailing_oblique_start) * self.xum
+            z_in_um = z * self.zum
+            mask = (x_in_um >= z_in_um) & (xend_in_um < z_in_um)
         else:
             mask = (x >= 0) & (z < self.directory.x_extent)
         mask = mask & \
@@ -473,7 +476,7 @@ class StitchSrcVolume:
         return last_best, (zm, ym, xm)
 
     def read_window(self, x0:int, x1:int, y0:int, y1:int, z0:int, z1:int,
-                    border=typing.Tuple[int, int, int]) ->\
+                    border:typing.Tuple[int, int, int]) ->\
             typing.Tuple[np.ndarray,
                          typing.Tuple[int, int, int, int, int, int]]:
         """
