@@ -347,8 +347,8 @@ class StitchSrcVolume:
                   self.y_relative(y0):self.y_relative(y0) + ys,
                   self.x_relative(x0):self.x_relative(x0) + xs]
         if self.is_oblique:
-            to_x0 = x - z
-            to_x1 = self.directory.x_extent - x - z
+            to_x0 = x - z * self.zum / self.xum
+            to_x1 = self.directory.x_extent - x - (zs - z) * self.zum / self.xum
         else:
             to_x0 = x
             to_x1 = self.directory.x_extent - x
