@@ -92,6 +92,8 @@ do
       --n-workers 48 \
 	    --rotate-90 3 \
 	    --flip-ud \
+	    --x-step-size $X_STEP_SIZE \
+	    --y-voxel-size $Y_VOXEL_SIZE \
 	    --input "$dcimg_path" \
 	    --output $PWD/"$destriped_precomputed" \
 	    $PYSTRIPE_EXTRA_ARGS \

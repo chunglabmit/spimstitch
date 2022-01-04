@@ -3,6 +3,8 @@ import glob
 import logging
 import multiprocessing
 import os
+
+import numpy as np
 from blockfs.directory import Directory
 from precomputed_tif.blockfs_stack import BlockfsStack
 import sys
@@ -32,6 +34,18 @@ def parse_args(args=sys.argv[1:]):
         help="The number of mipmap levels in the precomputed volume",
         default=5,
         type=int)
+    parser.add_argument(
+        "--x-step-size",
+        help="The size of a stage motion step in microns",
+        type=float,
+        default=3.625 / np.sqrt(2)
+    )
+    parser.add_argument(
+        "--y-voxel-size",
+        help="The size of a voxel in the plane in microns",
+        type=float,
+        default=3.625
+    )
     parser.add_argument(
         "--log-level",
         help="The log level for logging",
@@ -69,7 +83,11 @@ def main(args=sys.argv[1:]):
         bfs_stack.create()
     else:
         bfs_stack = BlockfsStack((zs, ys, xs), opts.output)
-    bfs_stack.write_info_file(opts.levels)
+    x_step_size = opts.x_step_size
+    y_voxel_size = opts.y_voxel_size
+    z_voxel_size = opts.y_voxel_size / np.sqrt(2)
+    bfs_stack.write_info_file(
+        opts.levels, voxel_size=(x_step_size, y_voxel_size, z_voxel_size))
     if opts.ngff:
         directory = NGFFDirectory(bfs_stack)
         directory.create()
@@ -86,7 +104,8 @@ def main(args=sys.argv[1:]):
                               n_filenames=opts.n_writers)
         directory.create()
         directory.start_writer_processes()
-    spim_to_blockfs(stack, directory, opts.n_workers)
+    spim_to_blockfs(stack, directory, opts.n_workers,
+                    voxel_size = y_voxel_size, x_step_size=x_step_size)
     for level in range(2, opts.levels+1):
         bfs_stack.write_level_n(level, n_cores=opts.n_writers)
 

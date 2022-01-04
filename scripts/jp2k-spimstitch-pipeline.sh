@@ -22,10 +22,10 @@ export channel=$1
 
 if [ -z "$X_STEP_SIZE" ]; then
   # Get X_STEP_SIZE from metadata file (2nd line, fourth field
-  export X_STEP_SIZE=$(cat metadata.txt | head -2 | tail -1 | cut -f 4);
+  export X_STEP_SIZE=export X_STEP_SIZE=$(dandi-metadata get-x-step-size metadata.txt);
 fi
 if [ -z "$Y_VOXEL_SIZE" ]; then
-  export Y_VOXEL_SIZE=$(cat metadata.txt | head -2 | tail -1 | cut -f 3);
+  export Y_VOXEL_SIZE=$(dandi-metadata get-y-voxel-size metadata.txt);
 fi
 if [ -z "$Z_OFFSET" ]; then export Z_OFFSET=2048; fi
 if [ -z "$BACKGROUND" ]; then export BACKGROUND=100; fi
@@ -135,6 +135,8 @@ do
       --n-workers $WORKERS \
 	    --rotate-90 3 \
 	    --flip-ud \
+	    --x-step-size $X_STEP_SIZE \
+	    --y-voxel-size $Y_VOXEL_SIZE \
 	    --input "$jp2k_src"/"img_*.jp2" \
 	    --output "$destriped_precomputed" \
 	    $PYSTRIPE_EXTRA_ARGS \

@@ -193,7 +193,7 @@ def main(args=sys.argv[1:]):
         output = BlockfsStack((zs, ys, xs), opts.output)
     voxel_size = (opts.x_step_size * 1000,
                   opts.y_voxel_size * 1000,
-                  opts.x_step_size * 1000)
+                  opts.y_voxel_size / np.sqrt(2) * 1000)
     output.write_info_file(opts.levels, voxel_size)
     if opts.ngff:
         directory = NGFFDirectory(output)
@@ -227,17 +227,23 @@ def adjust_alignments(opts, volumes:typing.Sequence[StitchSrcVolume]):
         alignments = {}
         with open(opts.alignment) as fd:
             d:dict = json.load(fd)
-        if "alignments" in d:
-            for k, v in d["alignments"].items():
-                alignments[tuple(json.loads(k)[:-1])] = v
         align_z = d.get("align-z", False)
+        for k, v in d["alignments"].items():
+            if align_z:
+                alignments[tuple(json.loads(k))] = v
+            else:
+                alignments[tuple(json.loads(k)[:-1])] = v
         for volume in volumes:
-            k = (volume.x0, volume.y0)
+            if align_z:
+                k = (volume.x0, volume.y0, volume.z0)
+            else:
+                k = (volume.x0, volume.y0)
             if k in alignments:
+                xa, ya, za = alignments[k]
                 if align_z:
-                    volume.x0, volume.y0, volume.z0 = alignments[k]
+                    volume.x0, volume.y0, volume.z0 = xa, ya, za
                 else:
-                    volume.x0, volume.y0, _ = alignments[k]
+                    volume.x0, volume.y0 = xa, ya
         return align_z
 
 

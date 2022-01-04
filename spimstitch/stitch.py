@@ -45,7 +45,7 @@ class StitchSrcVolume:
         else:
             self.directory = Directory.open(path)
         self.xum = x_step_size
-        self.zum = x_step_size
+        self.zum = yum / np.sqrt(2)
         self.yum = yum
         if x0 is None and y0 is None:
             z_metadata_dir = os.path.dirname(os.path.dirname(path))
@@ -167,10 +167,11 @@ class StitchSrcVolume:
             # The corner cases z > x and
             # trailing - x > z
             #
-            if x1_relative < z0_relative:
+            if x1_relative * self.xum < z0_relative * self.zum:
                 return False # top corner of block is below the leading oblique
             # bottom corner of block is above the trailing oblique
-            return self.directory.x_extent - x0_relative > z0_relative
+            return (self.directory.x_extent - x0_relative) * self.xum > \
+                   z0_relative * self.zum
         else:
             return True
 
@@ -310,7 +311,10 @@ class StitchSrcVolume:
         z, y, x = np.mgrid[z0r:z1r, y0r:y1r, x0r:x1r]
 
         if self.is_oblique:
-            mask = (x >= z) & (x - self.trailing_oblique_start < z)
+            x_in_um = x * self.xum
+            xend_in_um = (x - self.trailing_oblique_start) * self.xum
+            z_in_um = z * self.zum
+            mask = (x_in_um >= z_in_um) & (xend_in_um < z_in_um)
         else:
             mask = (x >= 0) & (z < self.directory.x_extent)
         mask = mask & \
@@ -343,8 +347,8 @@ class StitchSrcVolume:
                   self.y_relative(y0):self.y_relative(y0) + ys,
                   self.x_relative(x0):self.x_relative(x0) + xs]
         if self.is_oblique:
-            to_x0 = x - z
-            to_x1 = self.directory.x_extent - x - z
+            to_x0 = x - z * self.zum / self.xum
+            to_x1 = self.directory.x_extent - x - (zs - z) * self.zum / self.xum
         else:
             to_x0 = x
             to_x1 = self.directory.x_extent - x
@@ -472,7 +476,7 @@ class StitchSrcVolume:
         return last_best, (zm, ym, xm)
 
     def read_window(self, x0:int, x1:int, y0:int, y1:int, z0:int, z1:int,
-                    border=typing.Tuple[int, int, int]) ->\
+                    border:typing.Tuple[int, int, int]) ->\
             typing.Tuple[np.ndarray,
                          typing.Tuple[int, int, int, int, int, int]]:
         """
