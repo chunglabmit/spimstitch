@@ -34,24 +34,22 @@ def parse_terastitcher(path: str):
     stacks_dir = root.getElementsByTagName("stacks_dir")[0]
     ims_dir = stacks_dir.attributes["value"].nodeValue
     voxel_dims = root.getElementsByTagName("voxel_dims")[0]
-    voxel_size = dict([(name, abs(float(voxel_dims.attributes[key].nodeValue)))
+    voxel_size = dict([(name, float(voxel_dims.attributes[key].nodeValue))
                        for name, key in (("x", "H"), ("y", "V"), ("z", "D"))])
     stacks = root.getElementsByTagName("STACKS")[0]
     volumes = {}
     for stack in stacks.getElementsByTagName("Stack"):
-        x = float(stack.attributes["ABS_H"].nodeValue)
-        y = float(stack.attributes["ABS_V"].nodeValue)
-        row = int(stack.attributes["ROW"].nodeValue)
-        column = int(stack.attributes["COL"].nodeValue)
+        x = float(stack.attributes["ABS_H"].nodeValue) * voxel_size["x"]
+        y = float(stack.attributes["ABS_V"].nodeValue) * voxel_size["y"]
         filename = stack.attributes["IMG_REGEX"].nodeValue
         path = os.path.join(ims_dir, filename)
         volumes[x, y, 0] = ImarisStitchSrcVolume(
             path,
-            x_step_size=voxel_size["x"],
-            yum=voxel_size["y"],
-            zum=voxel_size["z"],
-            x0=x * voxel_size["x"],
-            y0=y * voxel_size["y"],
+            x_step_size=abs(voxel_size["x"]),
+            yum=abs(voxel_size["y"]),
+            zum=abs(voxel_size["z"]),
+            x0=x,
+            y0=y,
             z0=0,
             is_oblique=False,
             is_ims=True

@@ -798,9 +798,9 @@ def do_stitch(output_path:str,
               y_illum_corr=None,
               ngff=False, silent=False):
     if voxel_size is None:
-        voxel_size = (volumes[0].xum * 1000,
-                      volumes[0].yum * 1000,
-                      volumes[0].zum * 1000)
+        voxel_size = (abs(volumes[0].xum * 1000),
+                      abs(volumes[0].yum * 1000),
+                      abs(volumes[0].zum * 1000))
     if output_size is None:
         zs, ys, xs = get_output_size(volumes)
         x0 = y0 = z0 = 0
