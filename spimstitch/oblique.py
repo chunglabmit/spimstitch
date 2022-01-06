@@ -140,35 +140,56 @@ class BlockD:
         block = np.zeros((self.z1 - self.z0,
                           self.y1 - self.y0,
                           self.x1 - self.x0), np.float32)
-        zvox, yvox, xvox = np.mgrid[self.z0:self.z1,
-                                 self.y0:self.y1,
-                                 self.x0:self.x1]
-        zum = self.voxel_size * zvox / np.sqrt(2)
-        yum = self.voxel_size * yvox
-        xum = xvox * self.x_step_size
-        frame, yo, xo = um2oblique(xum, yum, zum,
-                                   voxel_size=self.voxel_size,
-                                   x_step_size=self.x_step_size)
-        frame_lo = np.floor(frame).astype(np.int32)
-        frame_hi = frame_lo + 1
-        frame_lo_frac = 1 - frame + frame_lo
-        frame_hi_frac = 1 - frame_hi + frame
-        for plane in self.planes:
-            mask_lo = plane.z == frame_lo
-            mask_hi = (plane.z == frame_hi) & (frame_hi > 0)
-            with plane.memory.txn() as m:
-                if np.any(mask_lo) and np.any(frame_lo_frac[mask_lo] > 0):
-                    block[zvox[mask_lo] - self.z0,
-                          yvox[mask_lo] - self.y0,
-                          xvox[mask_lo] - self.x0] += \
-                        map_coordinates(m, (yo[mask_lo], xo[mask_lo])) * \
-                        frame_lo_frac[mask_lo]
-                if np.any(mask_hi) and np.any(frame_hi_frac[mask_hi] > 0):
-                    block[zvox[mask_hi] - self.z0,
-                          yvox[mask_hi] - self.y0,
-                          xvox[mask_hi] - self.x0] += \
-                        map_coordinates(m, (yo[mask_hi], xo[mask_hi])) * \
-                        frame_hi_frac[mask_hi]
+        if np.abs(self.x_step_size - self.voxel_size / np.sqrt(2)) < .01:
+            # Isotropic x / z case. Get exact pixel locations. Code is faster.
+            for plane in self.planes:
+                x0a = self.x0
+                x1a = self.x1
+                y0a = max(self.y0, 0)
+                y1a = min(self.y1, plane.shape[0])
+
+                srcy, srcx = np.mgrid[y0a:y1a, x0a - plane.z:x1a - plane.z]
+                desty, destx = np.mgrid[y0a - self.y0:y1a - self.y0,
+                               x0a - self.x0:x1a - self.x0]
+                destz = srcx - self.z0
+                mask = (destz >= 0) & (destz < block.shape[0]) &\
+                       (srcx >= 0) & (srcx < plane.shape[1])
+                with plane.memory.txn() as m:
+                    block[destz[mask], desty[mask], destx[mask]] = \
+                        m[srcy[mask], srcx[mask]]
+        else:
+            # Anisotropic x/z case. Interpolate the voxels.
+            zvox, yvox, xvox = np.mgrid[self.z0:self.z1,
+                                     self.y0:self.y1,
+                                     self.x0:self.x1]
+            zum = self.voxel_size * zvox / np.sqrt(2)
+            yum = self.voxel_size * yvox
+            xum = xvox * self.x_step_size
+            frame, yo, xo = um2oblique(xum, yum, zum,
+                                       voxel_size=self.voxel_size,
+                                       x_step_size=self.x_step_size)
+            frame_lo = np.floor(frame).astype(np.int32)
+            frame_hi = frame_lo + 1
+            frame_lo_frac = 1 - frame + frame_lo
+            frame_hi_frac = 1 - frame_hi + frame
+            for plane in self.planes:
+                mask_lo = plane.z == frame_lo
+                mask_hi = (plane.z == frame_hi) & (frame_hi > 0)
+                with plane.memory.txn() as m:
+                    if np.any(mask_lo) and np.any(frame_lo_frac[mask_lo] > 0):
+                        block[zvox[mask_lo] - self.z0,
+                              yvox[mask_lo] - self.y0,
+                              xvox[mask_lo] - self.x0] += \
+                            map_coordinates(m, (yo[mask_lo], xo[mask_lo]),
+                                            order=1) * \
+                            frame_lo_frac[mask_lo]
+                    if np.any(mask_hi) and np.any(frame_hi_frac[mask_hi] > 0):
+                        block[zvox[mask_hi] - self.z0,
+                              yvox[mask_hi] - self.y0,
+                              xvox[mask_hi] - self.x0] += \
+                            map_coordinates(m, (yo[mask_hi], xo[mask_hi]),
+                                            order=1) * \
+                            frame_hi_frac[mask_hi]
         for y0a in range(self.y0, self.y1, self.ys):
             y1a = min(y0a + self.ys, self.y1)
             DIRECTORY.write_block(

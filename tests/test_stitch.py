@@ -64,7 +64,7 @@ class TestStitch(unittest.TestCase):
             mock_volume = volumes[0]
             volume = StitchSrcVolume(
                 os.path.join(mock_volume.path, "1_1_1", "precomputed.blockfs"),
-                1.8, 1.8)
+                1.8, 1.8, 0)
             self.assertAlmostEqual(volume.xum, 1.8 / np.sqrt(2), 3)
             self.assertAlmostEqual(volume.yum, 1.8, 3)
             self.assertAlmostEqual(volume.zum, 1.8 / np.sqrt(2), 3)
