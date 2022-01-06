@@ -71,9 +71,11 @@ VOLUMES = {}
 def main(args=sys.argv[1:]):
     opts = parse_arguments(args)
     all_volumes = []
-    for k, v in parse_terastitcher(opts.terastitcher_xml).items():
+    for k, v in \
+             parse_terastitcher(opts.terastitcher_xml).items():
         VOLUMES[k] = v
         all_volumes.append(v)
+        v.directory.current_channel = opts.channel - 1
     StitchSrcVolume.rebase_all(all_volumes, True)
     do_stitch(opts.output,
               all_volumes,

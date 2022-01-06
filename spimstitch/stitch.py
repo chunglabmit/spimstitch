@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
+import json
 
+from blockfs import Directory
 from blockfs.directory import Directory
 import itertools
 import multiprocessing
@@ -9,19 +11,21 @@ import tqdm
 import typing
 import uuid
 
+from precomputed_tif.blockfs_stack import BlockfsStack
 from precomputed_tif.ngff_stack import NGFFStack
 from sklearn.linear_model import RANSACRegressor
 from scipy import ndimage
 
 from spimstitch.ngff import NGFFDirectory, NGFFReadOnlyDirectory
-
+from .imaris import ImarisReadOnlyDirectory
 
 class StitchSrcVolume:
 
     def __init__(self, path:str, x_step_size:float, yum:float, z0:int,
                  is_oblique:bool=True,
                  is_ngff=False,
-                 x0=None, y0=None):
+                 is_ims=False,
+                 x0=None, y0=None, zum=None):
         """
 
         :param path: Path to a blockfs directory file. The path contains
@@ -35,6 +39,11 @@ class StitchSrcVolume:
         :param is_oblique: True if oblique, False if doing non-oblique stitch
         :param is_ngff: if True, use NGFF duck-typed directory, false, use
                         blockfs
+        :param is_ims: The filename is an Imaris file
+        :param x0: X0 of the stack in microns
+        :param y0: Y0 of the stack in microns
+        :param zum: size of a pixel in the Z direction in microns. Default
+        is the oblique y / sqrt(2)
         """
         self.key = uuid.uuid4()
         self.path = path
@@ -42,10 +51,15 @@ class StitchSrcVolume:
             self.directory = NGFFReadOnlyDirectory(path)
             stack = NGFFStack(self.directory.shape, path,
                               dtype=self.directory.dtype)
+        elif is_ims:
+            self.directory = ImarisReadOnlyDirectory(path)
         else:
             self.directory = Directory.open(path)
         self.xum = x_step_size
-        self.zum = yum / np.sqrt(2)
+        if zum is not None:
+            self.zum = zum
+        else:
+            self.zum = yum / np.sqrt(2)
         self.yum = yum
         if x0 is None and y0 is None:
             z_metadata_dir = os.path.dirname(os.path.dirname(path))
@@ -738,3 +752,89 @@ def run(volumes:typing.Sequence[StitchSrcVolume], output: Directory,
                 total=len(xr) * len(yr) * len(zr)):
             do_block(x0, y0, z0, x0g, y0g, z0g)
         OUTPUT.close()
+
+
+def adjust_alignments(opts, volumes:typing.Sequence[StitchSrcVolume]):
+    """
+    Adjust the volume coordinates based on alignments recorded by
+    oblique-align or similar.
+
+    :param opts: The command-line options - we take the --alignment arg
+    as a json file.
+    :param volumes: The volumes to be adjusted
+    """
+    if opts.alignment is not None:
+        alignments = {}
+        with open(opts.alignment) as fd:
+            d:dict = json.load(fd)
+        align_z = d.get("align-z", False)
+        for k, v in d["alignments"].items():
+            if align_z:
+                alignments[tuple(json.loads(k))] = v
+            else:
+                alignments[tuple(json.loads(k)[:-1])] = v
+        for volume in volumes:
+            if align_z:
+                k = (volume.x0, volume.y0, volume.z0)
+            else:
+                k = (volume.x0, volume.y0)
+            if k in alignments:
+                xa, ya, za = alignments[k]
+                if align_z:
+                    volume.x0, volume.y0, volume.z0 = xa, ya, za
+                else:
+                    volume.x0, volume.y0 = xa, ya
+        return align_z
+
+
+def do_stitch(output_path:str,
+              volumes:typing.Sequence[StitchSrcVolume],
+              levels:int,
+              n_workers:int,
+              n_writers:int,
+              output_offset:typing.Sequence[int]=None,
+              output_size:typing.Sequence[int]=None,
+              voxel_size=None,
+              y_illum_corr=None,
+              ngff=False, silent=False):
+    if voxel_size is None:
+        voxel_size = (volumes[0].xum * 1000,
+                      volumes[0].yum * 1000,
+                      volumes[0].zum * 1000)
+    if output_size is None:
+        zs, ys, xs = get_output_size(volumes)
+        x0 = y0 = z0 = 0
+    else:
+        xs, ys, zs = [int(_) for _ in output_size.split(",")]
+        if output_offset is None:
+            x0 = y0 = z0 = 0
+        else:
+            x0, y0, z0 = [int(_) for _ in output_offset.split(",")]
+    if not os.path.exists(output_path):
+        os.mkdir(output_path)
+    if ngff:
+        output = NGFFStack((xs, ys, xs), output_path)
+        output.create()
+    else:
+        l1_dir = os.path.join(output_path, "1_1_1")
+        if not os.path.exists(l1_dir):
+            os.mkdir(l1_dir)
+        output = BlockfsStack((zs, ys, xs), output_path)
+    output.write_info_file(levels, voxel_size)
+    if ngff:
+        directory = NGFFDirectory(output)
+        directory.create()
+    else:
+        directory_path = os.path.join(l1_dir, BlockfsStack.DIRECTORY_FILENAME)
+        directory = Directory(xs, ys, zs, volumes[0].directory.dtype,
+                              directory_path,
+                              n_filenames=n_writers)
+        directory.create()
+        directory.start_writer_processes()
+    run(volumes, directory, x0, y0, z0, n_workers, silent,
+        y_illum_corr)
+    directory.close()
+    for level in range(2, levels + 1):
+        output.write_level_n(level,
+                             silent=silent,
+                             n_cores=n_writers)

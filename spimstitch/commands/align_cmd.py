@@ -13,14 +13,14 @@ import tqdm
 from scipy import ndimage
 
 from ..stitch import StitchSrcVolume
+from ..imaris import parse_terastitcher
 from .dandi_metadata import get_chunk_transform_offsets
 
 def parse_args(args=sys.argv[1:]):
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--input",
-        help="Root directory of unaligned precomputed volumes",
-        required=True
+        help="Root directory of unaligned precomputed volumes"
     )
     parser.add_argument(
         "--pattern",
@@ -101,6 +101,22 @@ def parse_args(args=sys.argv[1:]):
         "--ngff",
         help="Use NGFF stacks instead of blockfs",
         action="store_true")
+    parser.add_argument(
+        "--imaris",
+        help="Use Imaris files instead of blockfs",
+        action="store_true"
+    )
+    parser.add_argument(
+        "--terastitcher-xml",
+        help="Terastitcher input file giving layout of volumes"
+    )
+    parser.add_argument(
+        "--channel",
+        help="The one-based index of the channel to use for alignment for "
+        "Imaris file alignment",
+        type=int,
+        default=1
+    )
     return parser.parse_args(args)
 
 
@@ -290,63 +306,70 @@ def main(args=sys.argv[1:]):
         pattern = "**"
     else:
         pattern = opts.pattern
-    if not opts.ngff:
-        paths = sorted(pathlib.Path(opts.input)
-                   .glob(f"{pattern}/1_1_1/precomputed.blockfs"))
+    if opts.imaris:
+        all_volumes = []
+        for k, v in parse_terastitcher(opts.terastitcher_xml).items():
+            VOLUMES[k] = v
+            all_volumes.append(v)
+            v.directory.current_channel = opts.channel - 1
     else:
-        paths = [path.parent for path in
-                 sorted(pathlib.Path(opts.input).glob(f"{pattern}/.zgroup"))]
-    if len(paths) == 0:
-        print("There are no precomputed.blockfs files in the path, %s" %
-              opts.input)
-        sys.exit(-1)
-    xum = opts.voxel_size / np.sqrt(2)
-    yum = opts.voxel_size
-    if opts.is_oblique:
-        zum = opts.voxel_size / np.sqrt(2)
-    else:
-        zum = opts.x_step_size
-    all_volumes = []
-    for path in paths:
         if opts.ngff:
-            # The NGFF files should have matching sidecar json
-            # This file has the putative offset of each stack
-            #
-            sidecar_path = path.parent / (path.stem + ".json")
-            if not sidecar_path.exists():
-                raise FileNotFoundError(
-                    "%s does not have a matching sidecar file" % str(path))
-            with open(sidecar_path) as fd:
-                sidecar = json.load(fd)
-                z, y, x = get_chunk_transform_offsets(sidecar)
-                x, y, z = x * xum, y * yum, z*zum
-            volume = VOLUMES[x, y, z] = StitchSrcVolume(
-                str(path),
-                opts.x_step_size,
-                opts.voxel_size,
-                z0=z,
-                is_oblique=opts.is_oblique,
-                is_ngff=True,
-                x0=x, y0=y)
+            paths = [path.parent for path in
+                     sorted(pathlib.Path(opts.input).glob(f"{pattern}/.zgroup"))]
         else:
-            zpath = path.parent.parent
-            try:
-                z = float(zpath.name) / 10
-            except ValueError:
-                z = 0
-            x, y = [float(_) / 10 for _ in zpath.parent.name.split("_")]
-            volume = VOLUMES[x, y, z] = StitchSrcVolume(str(path),
-                                                        opts.x_step_size,
-                                                        opts.voxel_size,
-                                                        z, opts.is_oblique)
-        if not opts.is_oblique:
-            volume.x0 = z
-            volume.xum = xum
-            volume.y0 = y
-            volume.yum = yum
-            volume.z0 = x - z
-            volume.zum = zum
-        all_volumes.append(volume)
+            paths = sorted(pathlib.Path(opts.input)
+                       .glob(f"{pattern}/1_1_1/precomputed.blockfs"))
+        if len(paths) == 0:
+            print("There are no precomputed.blockfs files in the path, %s" %
+                  opts.input)
+            sys.exit(-1)
+        xum = opts.voxel_size / np.sqrt(2)
+        yum = opts.voxel_size
+        if opts.is_oblique:
+            zum = opts.voxel_size / np.sqrt(2)
+        else:
+            zum = opts.x_step_size
+        all_volumes = []
+        for path in paths:
+            if opts.ngff:
+                # The NGFF files should have matching sidecar json
+                # This file has the putative offset of each stack
+                #
+                sidecar_path = path.parent / (path.stem + ".json")
+                if not sidecar_path.exists():
+                    raise FileNotFoundError(
+                        "%s does not have a matching sidecar file" % str(path))
+                with open(sidecar_path) as fd:
+                    sidecar = json.load(fd)
+                    z, y, x = get_chunk_transform_offsets(sidecar)
+                    x, y, z = x * xum, y * yum, z*zum
+                volume = VOLUMES[x, y, z] = StitchSrcVolume(
+                    str(path),
+                    opts.x_step_size,
+                    opts.voxel_size,
+                    z0=z,
+                    is_oblique=opts.is_oblique,
+                    is_ngff=True,
+                    x0=x, y0=y)
+            else:
+                zpath = path.parent.parent
+                try:
+                    z = float(zpath.name) / 10
+                except ValueError:
+                    z = 0
+                x, y = [float(_) / 10 for _ in zpath.parent.name.split("_")]
+                volume = VOLUMES[x, y, z] = StitchSrcVolume(str(path),
+                                                            opts.x_step_size,
+                                                            opts.voxel_size,
+                                                            z, opts.is_oblique)
+            if not opts.is_oblique:
+                volume.x0 = z
+                volume.xum = xum
+                volume.y0 = y
+                volume.yum = yum
+                volume.z0 = x - z
+                volume.zum = zum
+            all_volumes.append(volume)
     StitchSrcVolume.rebase_all(all_volumes, z_too=True)
 
     contexts = []
