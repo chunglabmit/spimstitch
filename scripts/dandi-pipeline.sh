@@ -110,19 +110,20 @@ do
   volume_path="$target_name".ngff
   sidecar_path="$target_name".json
   transform_path=${target_name::-4}transforms.json
-    dcimg2oblique \
-      --n-writers 11 \
-      --n-workers $N_WORKERS \
-	    --rotate-90 3 \
-	    --flip-ud \
-	    --input "$jp2k_path"/"img_*.jp2" \
-	    --output "$volume_path" \
-	     --destripe-method wavelet --sigma1 128 --sigma2 512 --wavelet db5 --crossover 10 \
-	     --flat $ILLUM_CORR --dark 100 \
-	    --levels 7 \
-	    --y-voxel-size $Y_VOXEL_SIZE \
-	    --jp2k \
-	    --ngff
+  dcimg2oblique \
+    --n-writers 11 \
+    --n-workers $N_WORKERS \
+    --rotate-90 3 \
+    --flip-ud \
+    --input "$jp2k_path"/"img_*.jp2" \
+    --output "$volume_path" \
+     --destripe-method wavelet --sigma1 128 --sigma2 512 --wavelet db5 --crossover 10 \
+     --flat $ILLUM_CORR --dark 100 \
+    --levels 7 \
+    --y-voxel-size $Y_VOXEL_SIZE \
+    --x-step-size $X_STEP_SIZE \
+    --jp2k \
+    --ngff
 	#
 	# Write the sidecar.
 	#
