@@ -6,7 +6,7 @@ import typing
 import numpy as np
 
 from ..imaris import parse_terastitcher
-from ..stitch import StitchSrcVolume, do_stitch
+from ..stitch import StitchSrcVolume, do_stitch, adjust_alignments
 
 
 def first_prime_at_or_before(n:int):
@@ -28,7 +28,7 @@ def parse_arguments(args:typing.Sequence[str]):
         required=True
     )
     parser.add_argument(
-        "--alignment-file",
+        "--alignment",
         help="JSON alignment file created by oblique-align",
         required=True
     )
@@ -76,6 +76,7 @@ def main(args=sys.argv[1:]):
         VOLUMES[k] = v
         all_volumes.append(v)
         v.directory.current_channel = opts.channel - 1
+    adjust_alignments(opts, all_volumes)
     StitchSrcVolume.rebase_all(all_volumes, True)
     do_stitch(opts.output,
               all_volumes,
