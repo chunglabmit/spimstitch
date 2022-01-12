@@ -32,6 +32,7 @@ setup(
         "dcimg2oblique=spimstitch.commands.dcimg2oblique:main",
         "stack2oblique=spimstitch.commands.stack2oblique:main",
         "oblique2stitched=spimstitch.commands.stitch_cmd:main",
+        "imaris2stitched=spimstitch.commands.stitch_imaris_cmd:main",
         "nonoblique2stitched=spimstitch.commands.stitch_nonoblique_cmd:main",
         "oblique-illum-corr=spimstitch.commands.illum_corr_cmd:main",
         "oblique-align=spimstitch.commands.align_cmd:main",
