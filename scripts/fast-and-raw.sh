@@ -135,28 +135,26 @@ fi
 X_STEP_SIZE=$(dandi-metadata get-x-step-size "$METADATA_FILE")
 Y_VOXEL_SIZE=$(dandi-metadata get-y-voxel-size "$METADATA_FILE")
 
-set -x
-
-echo #######################################################
-echo #
-echo # SAMPLE:  $SAMPLE
-echo # STAIN:   $STAIN
-echo # CHANNEL: $DANDI_CHANNEL
-if [ -n $DCIMG2JP2K_FILES ]
+echo ----------------------------------------------------------
+echo -
+echo - SAMPLE:  $SAMPLE
+echo - STAIN:   $STAIN
+echo - CHANNEL: $DANDI_CHANNEL
+if [ -n "$DCIMG2JP2K_FILES" ]
 then
-  echo # JP2K1:  $FIRST_JP2K_CHANNEL
+  echo - JP2K1:  $FIRST_JP2K_CHANNEL
 fi
 if [ -n "$SECOND_JP2K_CHANNEL" ]
 then
-  echo # JP2K2:  $SECOND_JP2K_CHANNEL
+  echo - JP2K2:  $SECOND_JP2K_CHANNEL
 fi
-echo # JP2K_BASE: $JP2K_BASE
-echo # DANDI_ROOT: $DANDI_ROOT
-echo # ILLUM_CORR: $ILLUM_CORR
-echo # X_STEP_SIZE: $X_STEP_SIZE
-echo # Y_VOXEL_SIZE: $Y_VOXEL_SIZE
-echo #
-echo #######################################################
+echo - JP2K_BASE: $JP2K_BASE
+echo - DANDI_ROOT: $DANDI_ROOT
+echo - ILLUM_CORR: $ILLUM_CORR
+echo - X_STEP_SIZE: $X_STEP_SIZE
+echo - Y_VOXEL_SIZE: $Y_VOXEL_SIZE
+echo -
+echo ----------------------------------------------------------
 
 #############################################################
 #
@@ -168,6 +166,7 @@ CHUNK_NUMBER=0
 for DCIMG_PATH in $ALL_DANDI_DCIMG
 do
   CHUNK_NUMBER=$(( $CHUNK_NUMBER + 1 ))
+  set -x
   TARGET_NAME="$DANDI_ROOT"/$(dandi-metadata target-file \
     --subject $SUBJECT \
     --sample $SAMPLE \
