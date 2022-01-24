@@ -142,7 +142,8 @@ echo #
 echo # SAMPLE:  $SAMPLE
 echo # STAIN:   $STAIN
 echo # CHANNEL: $DANDI_CHANNEL
-if [ -n $DCIMG2JP2K_FILES ] then
+if [ -n $DCIMG2JP2K_FILES ]
+then
   echo # JP2K1:  $FIRST_JP2K_CHANNEL
 fi
 if [ -n "$SECOND_JP2K_CHANNEL" ]
