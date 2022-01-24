@@ -52,12 +52,12 @@ then
 fi
 if [ -z $DANDI_ROOT ]
 then
-  echo "Please define $$DANDI_ROOT"
+  echo "Please define \$DANDI_ROOT"
   exit -1
 fi
 if [ -z $JP2K_BASE ]
 then
-  echo "Please define $$JP2K_BASE"
+  echo "Please define \$JP2K_BASE"
   exit -1
 fi
 
@@ -116,7 +116,7 @@ fi
 
 if [ -z "$TEMPLATE" ]
 then
-  echo "$$TEMPLATE is not defined. Please set it to the location of the template file"
+  echo "\$TEMPLATE is not defined. Please set it to the location of the template file"
   exit -1
 fi
 
