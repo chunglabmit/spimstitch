@@ -50,14 +50,15 @@ if [ -z "N_DCIMG2JP2K_WORKERS" ]
 then
   N_DCIMG2JP2K_WORKERS=48
 fi
-if [ -z DANDI_ROOT ]
+if [ -z $DANDI_ROOT ]
 then
   echo "Please define $$DANDI_ROOT"
   exit -1
 fi
-if [ -z JP2K_BASE ]
+if [ -z $JP2K_BASE ]
 then
   echo "Please define $$JP2K_BASE"
+  exit -1
 fi
 
 #################################
