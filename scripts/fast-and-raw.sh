@@ -150,7 +150,6 @@ then
 fi
 echo - JP2K_BASE: $JP2K_BASE
 echo - DANDI_ROOT: $DANDI_ROOT
-echo - ILLUM_CORR: $ILLUM_CORR
 echo - X_STEP_SIZE: $X_STEP_SIZE
 echo - Y_VOXEL_SIZE: $Y_VOXEL_SIZE
 echo -
@@ -170,7 +169,7 @@ do
   TARGET_NAME="$DANDI_ROOT"/$(dandi-metadata target-file \
     --subject $SUBJECT \
     --sample $SAMPLE \
-    --source-path $(dirname "$DCIMG_PATH") \
+    --source-path $(dirname "$DANDI_CHANNEL") \
     --stain $STAIN \
     --chunk $CHUNK_NUMBER )
   #
