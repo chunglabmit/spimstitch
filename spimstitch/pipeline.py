@@ -1,5 +1,6 @@
 import collections
 import enum
+import gc
 import logging
 import multiprocessing
 import os
@@ -68,6 +69,13 @@ class Resource:
             UPQUEUE.put((self.key, ResourceStatus.SUCCESS, None))
         except:
             self.report_exception()
+
+    def run_no_pool(self):
+        logging.debug("Running %s" % self.name)
+        self.prepare_fn()
+        self.fn()
+        self.record_completion(ResourceStatus.SUCCESS, None)
+        logging.debug("Finished %s" % self.name)
 
     def report_exception(self):
         logging.exception("Failed running resource %s" % self.key)
@@ -205,11 +213,43 @@ class Pipeline:
             self.process_upqueue(pool)
         self.progress_bar.close()
 
+    def run_no_pool(self, silent=False):
+        self.progress_bar = tqdm.tqdm(total = len(self.dependents),
+                                      disable=silent)
+        while len(self.dependents) > 0:
+            best_requirements = None
+            best_score = len(self.resources)+1
+            to_remove = []
+            for resources_key, dependents in \
+                    self.dependents_per_resource.items():
+                dependent = dependents[0]
+                if dependent.status == ResourceStatus.NOT_READY:
+                    requirements = set(dependent.requires())
+                    if 0 < len(requirements) < best_score:
+                        best_requirements = requirements
+                        best_score = len(requirements)
+                else:
+                    to_remove.append(resources_key)
+            del dependent
+            del dependents
+            for key in to_remove:
+                del self.dependents_per_resource[key]
+            for key in best_requirements:
+                requirement = self.resources[key]
+                requirement.run_no_pool()
+                self.finish_key(None, key, None, ResourceStatus.SUCCESS)
+                del requirement
+            gc.collect()
+        self.progress_bar.close()
+
     def process_upqueue(self, pool):
         key, status, error = UPQUEUE.get()
         resource = self.resources[key]
         resource.record_completion(status, error)
         self.in_flight.remove(key)
+        self.finish_key(error, key, pool, status)
+
+    def finish_key(self, error, key, pool, status):
         if key in self.dependent_keys:
             self.progress_bar.update()
         del self.resources[key]
@@ -221,8 +261,13 @@ class Pipeline:
                                  dependent.name)
                     del self.dependents[dependent.key]
                 elif dependent.status == ResourceStatus.PENDING:
-                    dependent.start_run(pool)
-                    self.in_flight.add(dependent.key)
+                    if pool is None:
+                        dependent.run_no_pool()
+                        self.finish_key(None, dependent.key, None,
+                                        ResourceStatus.SUCCESS)
+                    else:
+                        dependent.start_run(pool)
+                        self.in_flight.add(dependent.key)
                     del self.dependents[dependent.key]
             del self.prerequisites[key]
 

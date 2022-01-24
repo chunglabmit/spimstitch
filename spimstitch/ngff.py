@@ -13,24 +13,29 @@ class NGFFDirectory:
         """
         self.stack = stack
 
-    def create(self):
-        self.array = self.stack.create_dataset(1)
+    def create(self, level=1):
+        self.array = self.stack.create_dataset(level)
+        self.level = level
+
+    @property
+    def decimation(self):
+        return 2 ** (self.level -1)
 
     @property
     def shape(self):
-        return (self.stack.z_extent, self.stack.y_extent, self.stack.x_extent)
+        return (self.z_extent, self.y_extent, self.x_extent)
 
     @property
     def x_extent(self):
-        return self.stack.x_extent
+        return self.stack.x_extent // self.decimation
 
     @property
     def y_extent(self):
-        return self.stack.y_extent
+        return self.stack.y_extent // self.decimation
 
     @property
     def z_extent(self):
-        return self.stack.z_extent
+        return self.stack.z_extent // self.decimation
 
     @property
     def x_block_size(self):
@@ -49,9 +54,9 @@ class NGFFDirectory:
         return self.stack.dtype
 
     def get_block_size(self, x, y, z):
-        return (min(self.stack.z_extent - z, self.stack.cz()),
-                min(self.stack.y_extent - y, self.stack.cy()),
-                min(self.stack.x_extent - x, self.stack.cx()))
+        return (min(self.z_extent - z, self.stack.cz()),
+                min(self.y_extent - y, self.stack.cy()),
+                min(self.x_extent - x, self.stack.cx()))
 
     def write_block(self, block:np.ndarray, x0:int, y0:int, z0:int):
         zs, ys, xs = self.get_block_size(x0, y0, z0)

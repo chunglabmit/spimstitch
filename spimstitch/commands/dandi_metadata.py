@@ -233,6 +233,11 @@ def get_y_voxel_size(opts):
 
 
 def target_file(opts):
+    target_file_path = target_file_fn(opts)
+    print(str(target_file_path))
+
+
+def target_file_fn(opts):
     source_path = pathlib.Path(opts.source_path)
     match = re.search("^(\\d{8})_(\\d{2})_(\\d{2})_(\\d{2})", source_path.name)
     if not match:
@@ -246,7 +251,8 @@ def target_file(opts):
     name = "sub-%s_ses-%s_run-%s_sample-%s_stain-%s_chunk-%s_spim" % (
         opts.subject, session, opts.run, opts.sample, opts.stain, opts.chunk
     )
-    print(str(dir_path / name))
+    target_file_path = dir_path / name
+    return target_file_path
 
 
 def write_sidecar(opts):

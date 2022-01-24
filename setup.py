@@ -37,12 +37,14 @@ setup(
         "oblique-align=spimstitch.commands.align_cmd:main",
         "oblique-deconvolve=spimstitch.commands.deconvolve:main",
         "dandi-metadata=spimstitch.commands.dandi_metadata:main",
-        "dandi2jp2=spimstitch.commands.dandi2jp2_cmd:main"
+        "dandi2jp2=spimstitch.commands.dandi2jp2_cmd:main",
+        "dcimg2hdf5=spimstitch.commands.dcimg2hdf5:main"
     ]},
     scripts=["scripts/spimstitch-pipeline.sh",
              "scripts/jp2k-spimstitch-pipeline.sh",
              "scripts/nonoblique-pipeline.sh",
-             "scripts/dandi-pipeline.sh"],
+             "scripts/dandi-pipeline.sh",
+             "scripts/fast-and-raw.sh"],
     url="https://github.com/chunglabmit/spimstitch",
     license="MIT",
     classifiers=[

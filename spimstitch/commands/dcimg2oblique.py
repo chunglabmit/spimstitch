@@ -3,6 +3,7 @@ import multiprocessing
 import glob
 import glymur
 import os
+import resource
 
 import numpy as np
 import tifffile
@@ -176,6 +177,12 @@ def parse_args(args=sys.argv[1:]):
         help="Output an NGFF volume instead of blockfs",
         action="store_true"
     )
+    parser.add_argument(
+        "--n_files",
+        help="# of allowed simultaneously open files",
+        type=int,
+        default=4096
+    )
     return parser.parse_args(args)
 
 
@@ -234,6 +241,9 @@ def do_one(img):
 def main(args=sys.argv[1:]):
     global MY_OPTS, MY_DCIMG, FLAT
     MY_OPTS = parse_args(args)
+    soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+    limit = min(hard, MY_OPTS.n_files)
+    resource.setrlimit(resource.RLIMIT_NOFILE, (limit, hard))
     destripe_method = MY_OPTS.destripe_method
     if not (destripe_method is None or
             destripe_method == "lightsheet" or
@@ -284,6 +294,11 @@ def main(args=sys.argv[1:]):
     if MY_OPTS.ngff:
         directory = NGFFDirectory(bfs_stack)
         directory.create()
+        if MY_OPTS.levels > 1:
+            l2_directory = NGFFDirectory(bfs_stack)
+            l2_directory.create(2)
+        else:
+            l2_directory = None
     else:
         bfs_level1_dir = os.path.join(
             MY_OPTS.output, "1_1_1", BlockfsStack.DIRECTORY_FILENAME)
@@ -297,11 +312,29 @@ def main(args=sys.argv[1:]):
                               n_filenames=MY_OPTS.n_writers)
         directory.create()
         directory.start_writer_processes()
-    spim_to_blockfs(stack, directory, MY_OPTS.n_workers,
+        if MY_OPTS.levels > 1:
+            bfs_level2_dir = os.path.join(
+                MY_OPTS.output, "2_2_2", BlockfsStack.DIRECTORY_FILENAME)
+            if not os.path.exists(os.path.dirname(bfs_level2_dir)):
+                os.mkdir(os.path.dirname(bfs_level2_dir))
+            l2_directory = Directory(x_extent // 2,
+                                     y_extent // 2,
+                                     z_extent // 2,
+                                     np.uint16,
+                                     bfs_level2_dir,
+                                     n_filenames=MY_OPTS.n_writers)
+            l2_directory.create()
+            l2_directory.start_writer_processes()
+        else:
+            l2_directory = None
+
+    spim_to_blockfs(stack, directory,
+                    MY_OPTS.n_workers,
                     voxel_size=y_voxel_size,
                     x_step_size=x_step_size,
-                    read_fn=fn)
-    for level in range(2, MY_OPTS.levels+1):
+                    read_fn=fn,
+                    l2_directory=l2_directory)
+    for level in range(3, MY_OPTS.levels+1):
         bfs_stack.write_level_n(level, n_cores=MY_OPTS.n_writers)
 
 

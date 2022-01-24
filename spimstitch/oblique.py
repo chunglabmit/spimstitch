@@ -11,7 +11,9 @@ from .stack import SpimStack, StackFrame
 from mp_shared_memory import SharedMemory
 from .pipeline import Resource, Dependent, Pipeline
 
-DIRECTORY = None
+DIRECTORY:Directory = None
+L2_DIRECTORY:Directory = None
+
 
 def oblique2um(x:typing.Union[int, float, np.ndarray],
                y:typing.Union[int, float, np.ndarray],
@@ -190,11 +192,54 @@ class BlockD:
                             map_coordinates(m, (yo[mask_hi], xo[mask_hi]),
                                             order=1) * \
                             frame_hi_frac[mask_hi]
-        for y0a in range(self.y0, self.y1, self.ys):
-            y1a = min(y0a + self.ys, self.y1)
+        for x0a, y0a, z0a in itertools.product(
+            range(self.x0, self.x1, DIRECTORY.x_block_size),
+            range(self.y0, self.y1, DIRECTORY.y_block_size),
+            range(self.z0, self.z1, DIRECTORY.z_block_size)):
+            x1a = min(x0a + DIRECTORY.x_block_size, self.x1)
+            y1a = min(y0a + DIRECTORY.y_block_size, self.y1)
+            z1a = min(z0a + DIRECTORY.z_block_size, self.z1)
             DIRECTORY.write_block(
-                block[:, y0a - self.y0:y1a - self.y0].astype(np.uint16),
-                      self.x0, y0a, self.z0)
+                block[z0a - self.z0:z1a - self.z0,
+                      y0a - self.y0:y1a - self.y0,
+                      x0a - self.x0:x1a - self.x0].astype(np.uint16),
+                                  x0a, y0a, z0a)
+        if L2_DIRECTORY is None:
+            return
+        block_e = block[:block.shape[0] & ~ 1,
+                        :block.shape[1] & ~ 1,
+                        :block.shape[2] & ~ 1]
+        all_decimated = [block_e[x::2, y::2, z::2].astype(np.uint32)
+                         for x, y, z in
+                         itertools.product((0, 1), (0, 1), (0, 1))]
+        block_d = (sum(all_decimated[1:], all_decimated[0]) // 8).\
+            astype(np.uint16)
+        x0_l2 = self.x0 // 2
+        y0_l2 = self.y0 // 2
+        z0_l2 = self.z0 // 2
+        x1_l2 = self.x1 // 2
+        y1_l2 = self.y1 // 2
+        z1_l2 = self.z1 // 2
+        for x0a, y0a, z0a in itertools.product(
+            range(x0_l2, x1_l2, L2_DIRECTORY.x_block_size),
+            range(y0_l2, y1_l2, L2_DIRECTORY.y_block_size),
+            range(z0_l2, z1_l2, L2_DIRECTORY.z_block_size)):
+            x1a = min(x0a + L2_DIRECTORY.x_block_size, x1_l2)
+            y1a = min(y0a + L2_DIRECTORY.y_block_size, y1_l2)
+            z1a = min(z0a + L2_DIRECTORY.z_block_size, z1_l2)
+            try:
+                L2_DIRECTORY.write_block(
+                    block_d[z0a - z0_l2:z1a - z0_l2,
+                           y0a - y0_l2:y1a - y0_l2,
+                           x0a - x0_l2:x1a - x0_l2].astype(np.uint16),
+                    x0a, y0a, z0a)
+            except ValueError:
+                print(f"x0={self.x0} y0={self.y0} z0={self.z0}")
+                print(f"x1={self.x1} y1={self.y1} z1={self.z1}")
+                print(f"x0a={x0a} y0a={y0a} z0a={z0a}")
+                print(f"x1a={x1a} y1a={y1a} z1a={z1a}")
+                print(f"L2_DIRECTORY.shape={L2_DIRECTORY.shape}")
+                raise
 
 
 def make_resources(stack:SpimStack, read_fn:READ_FUNCTION_T=tifffile.imread)\
@@ -214,12 +259,16 @@ def spim_to_blockfs(stack:SpimStack, directory:Directory,
                     n_workers:int,
                     voxel_size:float,
                     x_step_size:float,
-                    read_fn:READ_FUNCTION_T=tifffile.imread):
-    global DIRECTORY
+                    read_fn:READ_FUNCTION_T=tifffile.imread,
+                    l2_directory:Directory=None):
+    global DIRECTORY, L2_DIRECTORY
     DIRECTORY = directory
+    L2_DIRECTORY = l2_directory
     dependents = make_s2b_dependents(stack, directory,
+                                     l2_directory,
                                      voxel_size, x_step_size, read_fn)
     pipeline = Pipeline(dependents)
+    del dependents
     with multiprocessing.Pool(n_workers) as pool:
         pipeline.run(pool)
         directory.close()
@@ -228,6 +277,7 @@ def spim_to_blockfs(stack:SpimStack, directory:Directory,
 
 def make_s2b_dependents(stack:SpimStack,
                         directory:Directory,
+                        l2_directory:Directory,
                         voxel_size:float,
                         x_step_size:float,
                         read_fn:READ_FUNCTION_T=tifffile.imread):
@@ -236,10 +286,10 @@ def make_s2b_dependents(stack:SpimStack,
     resources, planers = [[_[idx] for _ in resources_and_planers]
                           for idx in (0, 1)]
 
-    x0r = range(0, directory.x_extent, directory.x_block_size)
-    x1r = [min(_+directory.x_block_size, directory.x_extent) for _ in x0r]
+    x0r = range(0, directory.x_extent, directory.x_block_size * 2)
+    x1r = [min(_+directory.x_block_size*2, directory.x_extent) for _ in x0r]
     z0r = range(0, directory.z_extent, directory.z_block_size)
-    z1r = [min(_+directory.z_block_size, directory.z_extent) for _ in z0r]
+    z1r = [min(_+directory.z_block_size*2, directory.z_extent) for _ in z0r]
     dependents = []
     for (x0, x1), (z0, z1) in itertools.product(
         zip(x0r, x1r), zip(z0r, z1r)):
