@@ -135,6 +135,8 @@ fi
 X_STEP_SIZE=$(dandi-metadata get-x-step-size "$METADATA_FILE")
 Y_VOXEL_SIZE=$(dandi-metadata get-y-voxel-size "$METADATA_FILE")
 
+set -x
+
 echo #######################################################
 echo #
 echo # SAMPLE:  $SAMPLE
@@ -154,8 +156,6 @@ echo # X_STEP_SIZE: $X_STEP_SIZE
 echo # Y_VOXEL_SIZE: $Y_VOXEL_SIZE
 echo #
 echo #######################################################
-
-set -x
 
 #############################################################
 #
