@@ -42,6 +42,7 @@ setup(
     ]},
     scripts=["scripts/spimstitch-pipeline.sh",
              "scripts/jp2k-spimstitch-pipeline.sh",
+             "scripts/dragonfly-pipeline.sh",
              "scripts/nonoblique-pipeline.sh",
              "scripts/dandi-pipeline.sh"],
     url="https://github.com/chunglabmit/spimstitch",
