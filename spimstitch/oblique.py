@@ -254,7 +254,6 @@ def make_resources(stack:SpimStack, read_fn:READ_FUNCTION_T=tifffile.imread)\
         result.append((resource, planer))
     return result
 
-
 def spim_to_blockfs(stack:SpimStack, directory:Directory,
                     n_workers:int,
                     voxel_size:float,

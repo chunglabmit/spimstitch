@@ -60,7 +60,8 @@ then
   echo "Please define \$JP2K_BASE"
   exit -1
 fi
-
+# Resource tracker is loud for no good reason.
+PYTHONWARNINGS=ignore
 #################################
 #
 # Directory checks

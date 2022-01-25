@@ -61,7 +61,8 @@ class NGFFDirectory:
     def write_block(self, block:np.ndarray, x0:int, y0:int, z0:int):
         zs, ys, xs = self.get_block_size(x0, y0, z0)
         z1, y1, x1 = z0 + zs, y0 + ys, x0 + xs
-        self.array[0, 0, z0:z1, y0:y1, x0:x1] = block
+        self.array[0:1, 0:1, z0:z1, y0:y1, x0:x1] = \
+            block.reshape(1, 1, block.shape[0], block.shape[1], block.shape[2])
 
     def close(self):
         pass
