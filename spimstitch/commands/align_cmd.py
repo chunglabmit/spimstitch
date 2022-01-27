@@ -13,14 +13,15 @@ import tqdm
 from scipy import ndimage
 
 from ..stitch import StitchSrcVolume
+from ..utils import weighted_median
+from ..imaris import parse_terastitcher
 from .dandi_metadata import get_chunk_transform_offsets
 
 def parse_args(args=sys.argv[1:]):
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--input",
-        help="Root directory of unaligned precomputed volumes",
-        required=True
+        help="Root directory of unaligned precomputed volumes"
     )
     parser.add_argument(
         "--pattern",
@@ -101,17 +102,35 @@ def parse_args(args=sys.argv[1:]):
         "--ngff",
         help="Use NGFF stacks instead of blockfs",
         action="store_true")
+    parser.add_argument(
+        "--imaris",
+        help="Use Imaris files instead of blockfs",
+        action="store_true"
+    )
+    parser.add_argument(
+        "--terastitcher-xml",
+        help="Terastitcher input file giving layout of volumes"
+    )
+    parser.add_argument(
+        "--channel",
+        help="The one-based index of the channel to use for alignment for "
+        "Imaris file alignment",
+        type=int,
+        default=1
+    )
     return parser.parse_args(args)
 
+KEY_T = typing.Tuple[int, int, int]
+DKEY_T = typing.Tuple[KEY_T, KEY_T]
 
 def find_blobs(
-        key:typing.Tuple[int, int, int],
+        key:KEY_T,
         x0s:int, x1s:int, y0s:int, y1s:int, z0s:int, z1s:int) -> \
         typing.Tuple[np.ndarray, np.ndarray]:
     """
     Find blobs in a volume
 
-    :param volume: the volume in question
+    :param key: Key to fetch the volume in question
     :param x0s: the starting x coordinate in global coordinates
     :param x1s: the ending x coordinate
     :param y0s: the starting y
@@ -290,75 +309,86 @@ def main(args=sys.argv[1:]):
         pattern = "**"
     else:
         pattern = opts.pattern
-    if not opts.ngff:
-        paths = sorted(pathlib.Path(opts.input)
-                   .glob(f"{pattern}/1_1_1/precomputed.blockfs"))
+    if opts.imaris:
+        all_volumes = []
+        for k, v in parse_terastitcher(opts.terastitcher_xml).items():
+            VOLUMES[k] = v
+            all_volumes.append(v)
+            v.directory.current_channel = opts.channel - 1
     else:
-        paths = [path.parent for path in
-                 sorted(pathlib.Path(opts.input).glob(f"{pattern}/.zgroup"))]
-    if len(paths) == 0:
-        print("There are no precomputed.blockfs files in the path, %s" %
-              opts.input)
-        sys.exit(-1)
-    xum = opts.voxel_size / np.sqrt(2)
-    yum = opts.voxel_size
-    if opts.is_oblique:
-        zum = opts.voxel_size / np.sqrt(2)
-    else:
-        zum = opts.x_step_size
-    all_volumes = []
-    for path in paths:
         if opts.ngff:
-            # The NGFF files should have matching sidecar json
-            # This file has the putative offset of each stack
-            #
-            sidecar_path = path.parent / (path.stem + ".json")
-            if not sidecar_path.exists():
-                raise FileNotFoundError(
-                    "%s does not have a matching sidecar file" % str(path))
-            with open(sidecar_path) as fd:
-                sidecar = json.load(fd)
-                z, y, x = get_chunk_transform_offsets(sidecar)
-                x, y, z = x * xum, y * yum, z*zum
-            volume = VOLUMES[x, y, z] = StitchSrcVolume(
-                str(path),
-                opts.x_step_size,
-                opts.voxel_size,
-                z0=z,
-                is_oblique=opts.is_oblique,
-                is_ngff=True,
-                x0=x, y0=y)
+            paths = [path.parent for path in
+                     sorted(pathlib.Path(opts.input).glob(f"{pattern}/.zgroup"))]
         else:
-            zpath = path.parent.parent
-            try:
-                z = float(zpath.name) / 10
-            except ValueError:
-                z = 0
-            x, y = [float(_) / 10 for _ in zpath.parent.name.split("_")]
-            volume = VOLUMES[x, y, z] = StitchSrcVolume(str(path),
-                                                        opts.x_step_size,
-                                                        opts.voxel_size,
-                                                        z, opts.is_oblique)
-        if not opts.is_oblique:
-            volume.x0 = z
-            volume.xum = xum
-            volume.y0 = y
-            volume.yum = yum
-            volume.z0 = x - z
-            volume.zum = zum
-        all_volumes.append(volume)
+            paths = sorted(pathlib.Path(opts.input)
+                       .glob(f"{pattern}/1_1_1/precomputed.blockfs"))
+        if len(paths) == 0:
+            print("There are no precomputed.blockfs files in the path, %s" %
+                  opts.input)
+            sys.exit(-1)
+        xum = opts.voxel_size / np.sqrt(2)
+        yum = opts.voxel_size
+        if opts.is_oblique:
+            zum = opts.voxel_size / np.sqrt(2)
+        else:
+            zum = opts.x_step_size
+        all_volumes = []
+        for path in paths:
+            if opts.ngff:
+                # The NGFF files should have matching sidecar json
+                # This file has the putative offset of each stack
+                #
+                sidecar_path = path.parent / (path.stem + ".json")
+                if not sidecar_path.exists():
+                    raise FileNotFoundError(
+                        "%s does not have a matching sidecar file" % str(path))
+                with open(sidecar_path) as fd:
+                    sidecar = json.load(fd)
+                    z, y, x = get_chunk_transform_offsets(sidecar)
+                    x, y, z = x * xum, y * yum, z*zum
+                volume = VOLUMES[x, y, z] = StitchSrcVolume(
+                    str(path),
+                    opts.x_step_size,
+                    opts.voxel_size,
+                    z0=z,
+                    is_oblique=opts.is_oblique,
+                    is_ngff=True,
+                    x0=x, y0=y)
+            else:
+                zpath = path.parent.parent
+                try:
+                    z = float(zpath.name) / 10
+                except ValueError:
+                    z = 0
+                x, y = [float(_) / 10 for _ in zpath.parent.name.split("_")]
+                volume = VOLUMES[x, y, z] = StitchSrcVolume(str(path),
+                                                            opts.x_step_size,
+                                                            opts.voxel_size,
+                                                            z, opts.is_oblique)
+            if not opts.is_oblique:
+                volume.x0 = z
+                volume.xum = xum
+                volume.y0 = y
+                volume.yum = yum
+                volume.z0 = x - z
+                volume.zum = zum
+            all_volumes.append(volume)
     StitchSrcVolume.rebase_all(all_volumes, z_too=True)
 
     contexts = []
     overlaps = set()
     with multiprocessing.Pool(opts.n_cores) as pool:
-        for (xa, ya, za), volume_a in VOLUMES.items():
-            for (xb, yb, zb), volume_b in VOLUMES.items():
+        for ka in sorted(VOLUMES):
+            xa, ya, za = ka
+            volume_a = VOLUMES[ka]
+            for kb in sorted(VOLUMES):
+                xb, yb, zb = kb
+                volume_b = VOLUMES[kb]
                 n_different = sum([a != b for a, b in (
                     (xa, xb), (ya, yb), (za, zb))])
                 if n_different != 1:
                     continue
-                if ((xb, yb, zb), (xa, ya, za)) in overlaps:
+                if (kb, ka) in overlaps:
                     continue
                 if not volume_a.does_overlap(
                     volume_b.x0_global, volume_b.x1_global,
@@ -367,8 +397,8 @@ def main(args=sys.argv[1:]):
                 ):
                     continue
                 contexts.extend(
-                    calculate_alignments((xa, ya, za), (xb, yb, zb), pool, opts))
-                overlaps.add(((xa, ya, za), (xb, yb, zb)))
+                    calculate_alignments(ka, kb, pool, opts))
+                overlaps.add((ka, kb))
 
         overlaps = {}
         for context in tqdm.tqdm(contexts):
@@ -386,6 +416,99 @@ def main(args=sys.argv[1:]):
     json_overlaps = make_json_alignment_dict(overlaps, opts)
     with open(opts.output, "w") as fd:
         json.dump(json_overlaps, fd, indent=2)
+
+
+
+def weighted_median_from_overlaps(
+        dd:typing.Sequence[typing.Dict[str,float]], ka, kb) -> float:
+    """
+    Calculate the weighted median overlap for a particular direction
+
+    :param dd: a sequence of dictionary results of alignment matches
+    :param ka: the key for the fixed coordinate, e.g. "xa"
+    :param kb: the key for the moving coordinate, e.g. "xb"
+    :return: the weighted median offset from expected, using 1/(1 - correlation)
+    as the weighting.
+    """
+    data = [d[kb] - d[ka] for d in dd]
+    if len(data) == 0:
+        return 0
+    weights = [ 1/(1 - d["corr"] + np.finfo(np.float32).eps) for d in dd]
+    return weighted_median(data, weights)
+
+
+ROLLUP_T = typing.Dict[DKEY_T, typing.Dict[str, float]]
+
+
+def rollup_offsets(overlaps:typing.Dict[DKEY_T, typing.Sequence[typing.Dict]],
+                   xum:float, yum:float, zum:float) \
+    -> typing.Tuple[ROLLUP_T, ROLLUP_T, ROLLUP_T]:
+    """
+    Compute the weighted median of each sequence of discovered overlaps.
+    These are separated into 3 dictionaries, the X overlapping pairs,
+    the Y overlapping pairs and the Z overlapping pairs.
+
+    :param overlaps: the discovered overlaps for each overlapping region
+    :param xum: X voxel size in microns
+    :param yum: Y voxel size in microns
+    :param zum: Z voxel size in microns
+    :return: three dictionaries containing the median offsets for each
+    overlapping pair.
+    """
+    all_x, all_y, all_z = get_all_xyz()
+    rollups_x = {}
+    for xa, xb in zip(all_x[:-1], all_x[1:]):
+        for y in all_y:
+            for z in all_z:
+                rollups_x[(xa, y, z), (xb, y, z)] = \
+                    dict(x_off=0, y_off=0, z_off=0)
+    rollups_y = {}
+    for ya, yb in zip(all_y[:-1], all_y[1:]):
+        for x in all_x:
+            for z in all_z:
+                rollups_y[(x, ya, z), (x, yb, z)] = \
+                    dict(x_off=0, y_off=0, z_off=0)
+    rollups_z = {}
+    for za, zb in zip(all_z[:-1], all_z[1:]):
+        for x in all_x:
+            for y in all_y:
+                rollups_z[(x, y, za), (x, y, zb)] = \
+                    dict(x_off=0, y_off=0, z_off=0)
+    for key, value in overlaps.items():
+        key_a, key_b = key
+        assert all([av <= bv for av, bv in zip(key_a, key_b)]), \
+            f"First key {key_a} should be before second {key_b}"
+        if key_a[0] != key_b[0]:
+            tgt = rollups_x
+        elif key_a[1] != key_b[1]:
+            tgt = rollups_y
+        else:
+            tgt = rollups_z
+        x_off, y_off, z_off = [
+            weighted_median_from_overlaps(value, ka, kb) * um
+            for ka, kb, um in (("xa", "xb", xum),
+                               ("ya", "yb", yum),
+                               ("za", "zb", zum))]
+        tgt[key] = dict(x_off=x_off, y_off=y_off, z_off=z_off)
+        return rollups_x, rollups_y, rollups_z
+
+
+def compute_new_alignment(alignments, ka, kb, rollups):
+    aa = alignments[ka]
+    x = aa[0] + (kb[0] - ka[0]) + rollups[ka, kb]["x_off"]
+    y = aa[1] + (kb[1] - ka[1]) + rollups[ka, kb]["y_off"]
+    z = aa[2] + (kb[2] - ka[2]) + rollups[ka, kb]["z_off"]
+    alignments[kb] = (x, y, z)
+
+
+def get_all_xyz():
+    all_x = set()
+    all_y = set()
+    all_z = set()
+    for k in VOLUMES.keys():
+        for i, s in enumerate((all_x, all_y, all_z)):
+            s.add(k[i])
+    return [list(sorted(s)) for s in (all_x, all_y, all_z)]
 
 
 def make_json_alignment_dict(overlaps:dict, opts):
@@ -417,78 +540,52 @@ def make_json_alignment_dict(overlaps:dict, opts):
     :param opts: the command-line options
     :return: a JSON-serializable dictionary as described above.
     """
-    json_overlaps = {}
-    est_voxel_sizes = []
-    um_y_offsets = {}
-    um_x_offsets = {}
-    um_z_offsets = {}
-    xz_pix_size = opts.voxel_size / np.sqrt(2)
+    all_x, all_y, all_z = get_all_xyz()
+    yum = opts.voxel_size
+    xum = opts.x_step_size
+    zum = yum / np.sqrt(2)
+    json_overlaps = dict(voxel_sizes=[xum, yum, zum])
     for key, value in overlaps.items():
         skey = json.dumps(key)
         json_overlaps[skey] = value
-        key_a, key_b = key
-        volume_a = VOLUMES[key_a]
-        volume_b = VOLUMES[key_b]
-        for d in value:
-            if key_a[0] != key_b[0]:
-                xa = d["xa"]
-                xb = d["xb"]
-                xpix = volume_a.x_relative(0) - volume_b.x_relative(0) + xb - xa
-                xdist = volume_b.x0 - volume_a.x0
-                xum = xdist / xpix
-                est_voxel_sizes.append(xum * np.sqrt(2))
-            elif key_a[1] != key_b[1]:
-                ya = d["ya"]
-                yb = d["yb"]
-                ypix = volume_a.y_relative(0) - volume_b.y_relative(0) + yb - ya
-                ydist = volume_b.y0 - volume_a.y0
-                yum = ydist / ypix
-                est_voxel_sizes.append(yum)
-                um_y_offset = float((ya - yb) * opts.voxel_size)
-                um_x_offset = float((d["xa"] - d["xb"]) * xz_pix_size)
-                um_z_offset = float((d["za"] - d["zb"]) * xz_pix_size)
-                if key_b[1] > key_a[1]:
-                    keyy = key_b[1]
-                else:
-                    keyy = key_a[1]
-                    um_x_offset = -um_x_offset
-                    um_y_offset = -um_y_offset
-                    um_z_offset = -um_z_offset
-                xz_key = (key_a[0], key_a[2])
-                for d, v in ((um_x_offsets, um_x_offset),
-                             (um_y_offsets, um_y_offset),
-                             (um_z_offsets, um_z_offset)):
-                    if xz_key not in d:
-                        d[xz_key] = {}
-                    if keyy not in d[xz_key]:
-                        d[xz_key][keyy] = []
-                    d[xz_key][keyy].append(v)
-    json_overlaps["voxel_size"] = np.median(est_voxel_sizes)
-    json_overlaps["voxel_sizes"] = [float(_) for _ in est_voxel_sizes]
-    if len(um_y_offsets) > 0:
-        alignments = {}
-        for xz_key in um_y_offsets:
-            for y_key in um_y_offsets[xz_key]:
-                json_key = json.dumps((xz_key[0], y_key, xz_key[1]))
-                alignments[json_key] = [xz_key[0], y_key, xz_key[1]]
-        for xz_key in um_y_offsets:
-            for i, offsets in enumerate((
-                    um_x_offsets, um_y_offsets, um_z_offsets)):
-                if (not opts.align_xz) and i != 1:
-                    continue
-                accumulator = 0
-                for y_key in sorted(offsets[xz_key]):
-                    key = [xz_key[0], y_key, xz_key[1]]
-                    offset = np.median(offsets[xz_key][y_key])
-                    accumulator += offset
-                    new_value = float(key[i] + accumulator)
-                    json_key = json.dumps(key)
-                    alignments[json_key][i] = new_value
-        json_overlaps["alignments"] = alignments
-    if opts.align_xz:
-        json_overlaps["align-z"] = True
-    else:
-        json_overlaps["align-z"] = False
+
+    rollups_x, rollups_y, rollups_z = rollup_offsets(overlaps, xum, yum, zum)
+    alignments = {
+        (all_x[0], all_y[0], all_z[0]): (all_x[0], all_y[0], all_z[0])
+    }
+    #
+    # Fill in the edges
+    #
+    for xa, xb in zip(all_x[:-1], all_x[1:]):
+        y = all_y[0]
+        z = all_z[0]
+        ka = (xa, y, z)
+        kb = (xb, y, z)
+        compute_new_alignment(alignments, ka, kb, rollups_x)
+
+    for ya, yb in zip(all_y[:-1], all_y[1:]):
+        x = all_x[0]
+        z = all_z[0]
+        ka = (x, ya, z)
+        kb = (x, yb, z)
+        compute_new_alignment(alignments, ka, kb, rollups_y)
+
+    for za, zb in zip(all_z[:-1], all_z[1:]):
+        x = all_x[0]
+        y = all_y[0]
+        ka = (x, y, za)
+        kb = (x, y, zb)
+        compute_new_alignment(alignments, ka, kb, rollups_z)
+    # do the middles
+    for ya, yb in zip(all_y[:-1], all_y[1:]):
+        for x in all_x:
+            for z in all_z:
+                ka = x, ya, z
+                kb = x, yb, z
+                compute_new_alignment(alignments, ka, kb, rollups_y)
+    json_overlaps["alignments"] =\
+        dict([(json.dumps(k), v) for k, v in alignments.items()])
+    json_overlaps["align-z"] = bool(opts.align_xz)
     return json_overlaps
 
 

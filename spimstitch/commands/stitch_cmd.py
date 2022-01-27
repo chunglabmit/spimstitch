@@ -1,16 +1,13 @@
 import argparse
 import json
+
 import numpy as np
-import typing
-from blockfs.directory import  Directory
 import logging
 from precomputed_tif.blockfs_stack import BlockfsStack
-from precomputed_tif.ngff_stack import NGFFStack
 import os
 import sys
 
-from spimstitch.ngff import NGFFDirectory
-from ..stitch import get_output_size, StitchSrcVolume, run
+from ..stitch import StitchSrcVolume, adjust_alignments, do_stitch
 
 
 def parse_args(args=sys.argv[1:]):
@@ -172,79 +169,20 @@ def main(args=sys.argv[1:]):
             (1 - y_illum_corr) * (2047 - np.arange(2048)) / 2047 + \
             y_illum_corr
 
-    if opts.output_size is None:
-        zs, ys, xs = get_output_size(volumes)
-        x0 = y0 = z0 = 0
-    else:
-        xs, ys, zs = [int(_) for _ in opts.output_size.split(",")]
-        if opts.output_offset is None:
-            x0 = y0 = z0 = 0
-        else:
-            x0, y0, z0 = [int(_) for _ in opts.output_offset.split(",")]
-    if not os.path.exists(opts.output):
-        os.mkdir(opts.output)
-    l1_dir = os.path.join(opts.output, "1_1_1")
-    if not os.path.exists(l1_dir):
-        os.mkdir(l1_dir)
-    if opts.ngff:
-        output = NGFFStack((xs, ys, xs), opts.output)
-        output.create()
-    else:
-        output = BlockfsStack((zs, ys, xs), opts.output)
+    output_size = opts.output_size
+    output_offset = opts.output_offset
+    levels = opts.levels
+    silent = opts.silent
+    n_writers = opts.n_writers
+    n_workers = opts.n_workers
     voxel_size = (opts.x_step_size * 1000,
                   opts.y_voxel_size * 1000,
                   opts.y_voxel_size / np.sqrt(2) * 1000)
-    output.write_info_file(opts.levels, voxel_size)
-    if opts.ngff:
-        directory = NGFFDirectory(output)
-        directory.create()
-    else:
-        directory_path = os.path.join(l1_dir, BlockfsStack.DIRECTORY_FILENAME)
-        directory = Directory(xs, ys, zs, volumes[0].directory.dtype,
-                              directory_path,
-                              n_filenames=opts.n_writers)
-        directory.create()
-        directory.start_writer_processes()
-    run(volumes, directory, x0, y0, z0, opts.n_workers, opts.silent,
-        y_illum_corr)
-    directory.close()
-    for level in range(2, opts.levels + 1):
-        output.write_level_n(level,
-                             silent=opts.silent,
-                             n_cores=opts.n_writers)
+    opts_output = opts.output
+    ngff = opts.ngff
 
-
-def adjust_alignments(opts, volumes:typing.Sequence[StitchSrcVolume]):
-    """
-    Adjust the volume coordinates based on alignments recorded by
-    oblique-align or similar.
-
-    :param opts: The command-line options - we take the --alignment arg
-    as a json file.
-    :param volumes: The volumes to be adjusted
-    """
-    if opts.alignment is not None:
-        alignments = {}
-        with open(opts.alignment) as fd:
-            d:dict = json.load(fd)
-        align_z = d.get("align-z", False)
-        for k, v in d["alignments"].items():
-            if align_z:
-                alignments[tuple(json.loads(k))] = v
-            else:
-                alignments[tuple(json.loads(k)[:-1])] = v
-        for volume in volumes:
-            if align_z:
-                k = (volume.x0, volume.y0, volume.z0)
-            else:
-                k = (volume.x0, volume.y0)
-            if k in alignments:
-                xa, ya, za = alignments[k]
-                if align_z:
-                    volume.x0, volume.y0, volume.z0 = xa, ya, za
-                else:
-                    volume.x0, volume.y0 = xa, ya
-        return align_z
+    do_stitch(opts_output, volumes, levels, n_workers, n_writers, output_offset, output_size, voxel_size, y_illum_corr,
+              ngff, silent)
 
 
 if __name__ == "__main__":

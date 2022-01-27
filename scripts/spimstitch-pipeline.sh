@@ -21,7 +21,7 @@ then
 fi
 if [ -z "$Y_VOXEL_SIZE" ];
 then
-  export Y_VOXEL_SIZE=$(dandi-metadata get-y-voxel-size metadata.txt);
+    export Y_VOXEL_SIZE=$(dandi-metadata get-y-voxel-size metadata.txt);
 fi
 if [ -z "$Z_OFFSET" ]; then export Z_OFFSET=2048; fi
 if [ -z "$BACKGROUND" ]; then export BACKGROUND=100; fi
