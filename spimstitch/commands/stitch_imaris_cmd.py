@@ -62,6 +62,13 @@ def parse_arguments(args:typing.Sequence[str]):
         default=5,
         type=int
     )
+    parser.add_argument(
+        "--output-size",
+        help="Size of the output volume (x,y,z). Defaults to the extent of all "
+             "prestitched volumes.")
+    parser.add_argument(
+        "--output-offset",
+        help="Offset of the output volume. Only use with --output-size. ")
     return parser.parse_args(args)
 
 
@@ -82,7 +89,9 @@ def main(args=sys.argv[1:]):
               all_volumes,
               levels=opts.levels,
               n_workers=opts.n_cores,
-              n_writers=opts.n_writers)
+              n_writers=opts.n_writers,
+              output_size=opts.output_size,
+              output_offset=opts.output_offset)
 
 
 if __name__ == "__main__":

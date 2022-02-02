@@ -22,7 +22,7 @@ export channel=$1
 
 if [ -z "$X_STEP_SIZE" ]; then
   # Get X_STEP_SIZE from metadata file (2nd line, fourth field
-  export X_STEP_SIZE=export X_STEP_SIZE=$(dandi-metadata get-x-step-size metadata.txt);
+  export X_STEP_SIZE=$(dandi-metadata get-x-step-size metadata.txt);
 fi
 if [ -z "$Y_VOXEL_SIZE" ]; then
   export Y_VOXEL_SIZE=$(dandi-metadata get-y-voxel-size metadata.txt);

@@ -251,17 +251,17 @@ class StitchSrcVolume:
         return True
 
     def z_relative(self, z):
-        return int(z - self.z0 / self.zum + .5)
+        return int(np.round(z - self.z0 / self.zum))
 
     def y_relative(self, y):
-        return int(y - self.y0 / self.yum + .5)
+        return int(np.round(y - self.y0 / self.yum))
 
     def x_relative(self, x):
-        return int(x - self.x0 / self.xum + .5)
+        return int(np.round(x - self.x0 / self.xum))
 
     @property
     def x0_global(self):
-        return int(self.x0 / self.xum + .5)
+        return int(np.round(self.x0 / self.xum))
 
     @property
     def x1_global(self):
@@ -269,7 +269,7 @@ class StitchSrcVolume:
 
     @property
     def y0_global(self):
-        return int(self.y0 / self.yum + .5)
+        return int(np.round(self.y0 / self.yum))
 
     @property
     def y1_global(self):
@@ -277,7 +277,7 @@ class StitchSrcVolume:
 
     @property
     def z0_global(self):
-        return int(self.z0 / self.zum + .5)
+        return int(np.round(self.z0 / self.zum ))
 
     @property
     def z1_global(self):
