@@ -32,6 +32,8 @@ from math import sqrt
 
 from precomputed_tif.client import ArrayReader
 
+MICR_DIR = "micr"
+
 
 def parse_args(args=sys.argv[1:]):
     parser = argparse.ArgumentParser()
@@ -242,10 +244,9 @@ def target_file(opts):
     session_groups = tuple(match.groups())
     session = "%sh%sm%ss%s" % session_groups
     dir_path = pathlib.Path("sub-%s" % opts.subject) / \
-               ("ses-%s" % session) / "microscopy"
-    name = "sub-%s_ses-%s_run-%s_sample-%s_stain-%s_chunk-%s_spim" % (
-        opts.subject, session, opts.run, opts.sample, opts.stain, opts.chunk
-    )
+               ("ses-%s" % session) / MICR_DIR
+    name = f"sub-{opts.subject}_ses-{session}_sample-{opts.sample}_" \
+           f"stain-{opts.stain}_run-{opts.run}_chunk-{opts.chunk}_SPIM"
     print(str(dir_path / name))
 
 
