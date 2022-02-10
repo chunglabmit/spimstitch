@@ -57,6 +57,10 @@ def parse_args(args=sys.argv[1:]):
         type=int
     )
     parser.add_argument(
+        "--chunk-size",
+        help="The size of a precomputed chunk in x,y,z format"
+    )
+    parser.add_argument(
         "--x-step-size",
         help="X step size in microns",
         type=float,
@@ -267,13 +271,18 @@ def main(args=sys.argv[1:]):
     #
     z_extent, y_extent, x_extent, dtype = get_blockfs_dims(
         stack, x_extent, y_extent)
+    kwargs = {}
+    if MY_OPTS.chunk_size is not None:
+        cx, cy, cz = [int(_) for _ in MY_OPTS.chunk_size.split(",")]
+        kwargs["chunk_size"] = (cz, cy, cx)
     if MY_OPTS.ngff:
         bfs_stack = NGFFStack((z_extent, y_extent, x_extent),
-                              MY_OPTS.output)
+                              MY_OPTS.output,
+                              **kwargs)
         bfs_stack.create()
     else:
         bfs_stack = BlockfsStack((z_extent, y_extent, x_extent),
-                                 MY_OPTS.output)
+                                 MY_OPTS.output, **kwargs)
     y_voxel_size = MY_OPTS.y_voxel_size
     xz_voxel_size = y_voxel_size / np.sqrt(2)
     x_step_size = MY_OPTS.x_step_size

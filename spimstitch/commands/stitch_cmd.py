@@ -29,6 +29,10 @@ def parse_args(args=sys.argv[1:]):
         default=5,
         type=int)
     parser.add_argument(
+        "--chunk-size",
+        help="The size of a precomputed chunk in x,y,z format"
+    )
+    parser.add_argument(
         "--log-level",
         help="The log level for logging",
         default="WARNING")
@@ -180,9 +184,17 @@ def main(args=sys.argv[1:]):
                   opts.y_voxel_size / np.sqrt(2) * 1000)
     opts_output = opts.output
     ngff = opts.ngff
+    if opts.chunk_size is not None:
+        cx, cy, cz = [int(_) for _ in opts.chunk_size]
+        chunk_size = (cz, cy, cx)
+    elif ngff:
+        chunk_size = (128, 128, 128)
+    else:
+        chunk_size = (64, 64, 64)
 
-    do_stitch(opts_output, volumes, levels, n_workers, n_writers, output_offset, output_size, voxel_size, y_illum_corr,
-              ngff, silent)
+    do_stitch(opts_output, volumes, levels, n_workers, n_writers, output_offset,
+              output_size, voxel_size, y_illum_corr,
+              ngff, silent, chunk_size)
 
 
 if __name__ == "__main__":

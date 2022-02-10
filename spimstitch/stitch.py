@@ -796,7 +796,8 @@ def do_stitch(output_path:str,
               output_size:typing.Sequence[int]=None,
               voxel_size=None,
               y_illum_corr=None,
-              ngff=False, silent=False):
+              ngff=False, silent=False,
+              chunk_size=(64, 64, 64)):
     if voxel_size is None:
         voxel_size = (abs(volumes[0].xum * 1000),
                       abs(volumes[0].yum * 1000),
@@ -813,13 +814,14 @@ def do_stitch(output_path:str,
     if not os.path.exists(output_path):
         os.mkdir(output_path)
     if ngff:
-        output = NGFFStack((xs, ys, xs), output_path)
+        output = NGFFStack((xs, ys, xs), output_path, chunk_size=chunk_size)
         output.create()
     else:
         l1_dir = os.path.join(output_path, "1_1_1")
         if not os.path.exists(l1_dir):
             os.mkdir(l1_dir)
-        output = BlockfsStack((zs, ys, xs), output_path)
+        output = BlockfsStack((zs, ys, xs), output_path,
+                              chunk_size=chunk_size)
     output.write_info_file(levels, voxel_size)
     if ngff:
         directory = NGFFDirectory(output)

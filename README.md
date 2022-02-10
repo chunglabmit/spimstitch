@@ -207,6 +207,7 @@ oblique2stitched \
   --input <input-path> \
   --output <output-path> \
   [--levels <levels>] \
+  [--chunk-size <chunk-size>] \
   [--log-level <log-level>] \
   [--n-writers <n-writers>] \
   [--n-workers <n-workers>] \
@@ -227,6 +228,9 @@ where
 
 * **levels** is the number of Neuroglancer pyramid levels to be created.
   The default is 5.
+
+* **chunk-size** is the size of a precomputed chunk in x,y,z format.
+                 The default is 64,64,64 for blockfs, 128,128,128 for ngff.
   
 * **log-level** is the level for logging, one of "DEBUG", "INFO",
   "WARNING" or "ERROR". The default is "WARNING".
