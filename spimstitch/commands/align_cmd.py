@@ -490,7 +490,7 @@ def rollup_offsets(overlaps:typing.Dict[DKEY_T, typing.Sequence[typing.Dict]],
                                ("ya", "yb", yum),
                                ("za", "zb", zum))]
         tgt[key] = dict(x_off=x_off, y_off=y_off, z_off=z_off)
-        return rollups_x, rollups_y, rollups_z
+    return rollups_x, rollups_y, rollups_z
 
 
 def compute_new_alignment(alignments, ka, kb, rollups):
