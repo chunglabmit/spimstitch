@@ -11,6 +11,7 @@
 # $ILLUM_CORR - the illumination correction file to use. If none, one will be computed
 # $ALIGN_FILE - the file to use to align scan runs. If none, one will be computed.
 #               Subsequent channels should use the first channel's alignment file.
+# $NEGATIVE_Y - if set, the Y scan direction is opposite stage motion
 #
 set -e
 export channel=$1
@@ -106,6 +107,15 @@ done
 #
 if [ $SINGLE_CHANNEL == 0 ]; then
   if [ -z $ALIGN_FILE ]; then
+    if [ -z $ALIGN_XZ ]; then
+      export ALIGN_EXTRAS=""
+    else
+      export ALIGN_EXTRAS="--align-xz"
+    fi
+    if [ -v NEGATIVE_Y ];
+    then
+      export ALIGN_EXTRAS=$ALIGN_EXTRAS" --negative-y"
+    fi
     export ALIGN_FILE=$PWD/"$channel"-align.json
     oblique-align \
       --input $PWD/"$channel"_destriped_precomputed \
@@ -116,7 +126,8 @@ if [ $SINGLE_CHANNEL == 0 ]; then
       --n-cores 48 \
       --sigma 10 \
       --sample-count 100 \
-      --window-size 51,51,51
+      --window-size 51,51,51 \
+      $ALIGN_EXTRAS
   fi
 #
 # Stitch the oblique volumes, using either a pre-existing alignment

@@ -118,6 +118,12 @@ def parse_args(args=sys.argv[1:]):
         type=int,
         default=1
     )
+    parser.add_argument(
+        "--negative-y",
+        help="Use this switch if the Y direction as read from file names "
+        "is in the opposite direction with respect to Y scans",
+        action="store_true"
+    )
     return parser.parse_args(args)
 
 KEY_T = typing.Tuple[int, int, int]
@@ -361,10 +367,12 @@ def main(args=sys.argv[1:]):
                 except ValueError:
                     z = 0
                 x, y = [float(_) / 10 for _ in zpath.parent.name.split("_")]
-                volume = VOLUMES[x, y, z] = StitchSrcVolume(str(path),
-                                                            opts.x_step_size,
-                                                            opts.voxel_size,
-                                                            z, opts.is_oblique)
+                if opts.negative_y:
+                    real_y = -y
+                volume = VOLUMES[x, y, z] = StitchSrcVolume(
+                    str(path), opts.x_step_size, opts.voxel_size,
+                    x0=x, y0=real_y, z0=z,
+                    is_oblique=opts.is_oblique)
             if not opts.is_oblique:
                 volume.x0 = z
                 volume.xum = xum
@@ -493,10 +501,11 @@ def rollup_offsets(overlaps:typing.Dict[DKEY_T, typing.Sequence[typing.Dict]],
     return rollups_x, rollups_y, rollups_z
 
 
-def compute_new_alignment(alignments, ka, kb, rollups):
+def compute_new_alignment(alignments, ka, kb, rollups, negative_y):
+    ny_mult = -1 if negative_y else 1
     aa = alignments[ka]
     x = aa[0] + (kb[0] - ka[0]) + rollups[ka, kb]["x_off"]
-    y = aa[1] + (kb[1] - ka[1]) + rollups[ka, kb]["y_off"]
+    y = aa[1] + (kb[1] - ka[1]) * ny_mult + rollups[ka, kb]["y_off"]
     z = aa[2] + (kb[2] - ka[2]) + rollups[ka, kb]["z_off"]
     alignments[kb] = (x, y, z)
 
@@ -561,28 +570,29 @@ def make_json_alignment_dict(overlaps:dict, opts):
         z = all_z[0]
         ka = (xa, y, z)
         kb = (xb, y, z)
-        compute_new_alignment(alignments, ka, kb, rollups_x)
+        compute_new_alignment(alignments, ka, kb, rollups_x, opts.negative_y)
 
     for ya, yb in zip(all_y[:-1], all_y[1:]):
         x = all_x[0]
         z = all_z[0]
         ka = (x, ya, z)
         kb = (x, yb, z)
-        compute_new_alignment(alignments, ka, kb, rollups_y)
+        compute_new_alignment(alignments, ka, kb, rollups_y, opts.negative_y)
 
     for za, zb in zip(all_z[:-1], all_z[1:]):
         x = all_x[0]
         y = all_y[0]
         ka = (x, y, za)
         kb = (x, y, zb)
-        compute_new_alignment(alignments, ka, kb, rollups_z)
+        compute_new_alignment(alignments, ka, kb, rollups_z, opts.negative_y)
     # do the middles
     for ya, yb in zip(all_y[:-1], all_y[1:]):
         for x in all_x:
             for z in all_z:
                 ka = x, ya, z
                 kb = x, yb, z
-                compute_new_alignment(alignments, ka, kb, rollups_y)
+                compute_new_alignment(alignments, ka, kb, rollups_y,
+                                      opts.negative_y)
     json_overlaps["alignments"] =\
         dict([(json.dumps(k), v) for k, v in alignments.items()])
     json_overlaps["align-z"] = bool(opts.align_xz)

@@ -16,6 +16,7 @@
 # $DONT_CLEANUP_INTERMEDIATES - if this is 1, then we keep the stack neuroglancer volumes
 # $ALIGN_XZ - if this is defined, then we allow alignment adjustment of X and Z as well as Y
 # $NGFF - if this is defined, output in NGFF format instead of blockfs
+# $NEGATIVE_Y - if the direction of Y stage motion is opposite that of scanning
 #
 set -e
 export channel=$1
@@ -152,6 +153,10 @@ if [ $SINGLE_CHANNEL == 0 ]; then
       export ALIGN_EXTRAS=""
     else
       export ALIGN_EXTRAS="--align-xz"
+    fi
+    if [ -v NEGATIVE_Y ];
+    then
+      export ALIGN_EXTRAS=$ALIGN_EXTRAS" --negative-y"
     fi
     export ALIGN_FILE=$PWD/"$channel"-align.json
     oblique-align \
