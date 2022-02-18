@@ -24,7 +24,11 @@ if [ -z "$Y_VOXEL_SIZE" ];
 then
     export Y_VOXEL_SIZE=$(dandi-metadata get-y-voxel-size metadata.txt);
 fi
-if [ -z "$Z_OFFSET" ]; then export Z_OFFSET=2048; fi
+if [ -z "$NEGATIVE_Y" ] && [ $(dandi-metadata get-negative-y metadata.txt) == "negative-y" ]; then
+  NEGATIVE_Y=1
+fi
+
+if [ -z "$Z_OFFSET" ]; then export Z_OFFSET=1844; fi
 if [ -z "$BACKGROUND" ]; then export BACKGROUND=100; fi
 if [ -z "$ILLUM_CORR" ]; then
   ILLUM_CORR="$channel"-illuc.tiff

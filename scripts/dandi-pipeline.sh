@@ -39,6 +39,7 @@ fi
 METADATA_FILE=$(dirname "$RAW_PATH")/metadata.txt
 X_STEP_SIZE=$(dandi-metadata get-x-step-size "$METADATA_FILE")
 Y_VOXEL_SIZE=$(dandi-metadata get-y-voxel-size "$METADATA_FILE")
+NEGATIVE_Y=$(dandi-metadata get-negative-y "$METADATA_FILE")
 if [ -z "$ILLUM_CORR" ]; then
   ILLUM_CORR=/media/share10/lee/illum/ospim1-2021-03-09.tiff
 fi
@@ -152,7 +153,11 @@ else
     then
       ALIGN_EXTRAS=--align-xz
     fi
-    ngff_wildcard=$(basename $(dandi-metadata target-file \
+  if [ -v NEGATIVE_Y ];
+  then
+    export ALIGN_EXTRAS=$ALIGN_EXTRAS" --negative-y"
+  fi
+  ngff_wildcard=$(basename $(dandi-metadata target-file \
         --subject $SUBJECT \
         --sample $SAMPLE \
         --source-path $(dirname $RAW_PATH) \

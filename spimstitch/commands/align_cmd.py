@@ -352,6 +352,7 @@ def main(args=sys.argv[1:]):
                     sidecar = json.load(fd)
                     z, y, x = get_chunk_transform_offsets(sidecar)
                     x, y, z = x * xum, y * yum, z*zum
+                y_sign = -1 if opts.negative_y else 1
                 volume = VOLUMES[x, y, z] = StitchSrcVolume(
                     str(path),
                     opts.x_step_size,
@@ -359,7 +360,7 @@ def main(args=sys.argv[1:]):
                     z0=z,
                     is_oblique=opts.is_oblique,
                     is_ngff=True,
-                    x0=x, y0=y)
+                    x0=x, y0=y * y_sign)
             else:
                 zpath = path.parent.parent
                 try:

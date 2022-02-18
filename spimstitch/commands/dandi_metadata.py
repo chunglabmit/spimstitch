@@ -45,6 +45,7 @@ def parse_args(args=sys.argv[1:]):
     build_transform_parser(subparsers)
     build_order_dcimg_files(subparsers)
     build_rewrite_transforms(subparsers)
+    build_negative_y_parser(subparsers)
     return parser.parse_args(args)
 
 
@@ -65,6 +66,14 @@ def build_x_step_size_parser(subparsers):
         help="Path to the metadata.txt file"
     )
 
+
+def build_negative_y_parser(subparsers):
+    subparser = subparsers.add_parser("get-negative-y")
+    subparser.set_defaults(func=get_negative_y)
+    subparser.add_argument(
+        "metadata_file",
+        help="Path to the metadata.txt file"
+    )
 
 def build_write_sidecar_parser(subparsers):
     subparser = subparsers.add_parser("write-sidecar")
@@ -232,6 +241,16 @@ def get_y_voxel_size(opts):
     metadata_path = pathlib.Path(opts.metadata_file)
     x_step_size, y_voxel_size = get_sizes(metadata_path)
     print(y_voxel_size)
+
+
+def get_negative_y(opts):
+    metadata_path = pathlib.Path(opts.metadata_file)
+    lines = [line.strip() for line in open(metadata_path, encoding="latin1")]
+    for field in lines[0].split("\t"):
+        if field.startswith("NoOffset"):
+            print("negative-y")
+            return
+    print("positive-y")
 
 
 def target_file(opts):
