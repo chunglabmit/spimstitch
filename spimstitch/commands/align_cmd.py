@@ -370,6 +370,8 @@ def main(args=sys.argv[1:]):
                 x, y = [float(_) / 10 for _ in zpath.parent.name.split("_")]
                 if opts.negative_y:
                     real_y = -y
+                else:
+                    real_y = y
                 volume = VOLUMES[x, y, z] = StitchSrcVolume(
                     str(path), opts.x_step_size, opts.voxel_size,
                     x0=x, y0=real_y, z0=z,
