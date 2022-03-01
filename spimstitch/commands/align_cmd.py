@@ -603,9 +603,8 @@ def make_json_alignment_dict(overlaps:dict, opts):
     for vs in alignments.values():
         for i in range(len(vs)):
             mins[i] = min(mins[i], vs[i])
-    for vs in alignments.values():
-        for i in range(len(vs)):
-            vs[i] = vs[i] - mins[i]
+    for k, vs in alignments.items():
+        alignments[k] = [a - b for a, b in zip(vs, mins)]
     json_overlaps["alignments"] =\
         dict([(json.dumps(k), v) for k, v in alignments.items()])
     json_overlaps["align-z"] = bool(opts.align_xz)
