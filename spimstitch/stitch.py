@@ -25,7 +25,7 @@ class StitchSrcVolume:
                  is_oblique:bool=True,
                  is_ngff=False,
                  is_ims=False,
-                 x0=None, y0=None, zum=None):
+                 x0=None, y0=None, zum=None, level=1):
         """
 
         :param path: Path to a blockfs directory file. The path contains
@@ -44,15 +44,16 @@ class StitchSrcVolume:
         :param y0: Y0 of the stack in microns
         :param zum: size of a pixel in the Z direction in microns. Default
         is the oblique y / sqrt(2)
+        :param level: for NGFF, the downsampling level, e.g. 1,2, 4
         """
         self.key = uuid.uuid4()
         self.path = path
         if is_ngff:
-            self.directory = NGFFReadOnlyDirectory(path)
+            self.directory = NGFFReadOnlyDirectory(path, level)
             stack = NGFFStack(self.directory.shape, path,
                               dtype=self.directory.dtype)
         elif is_ims:
-            self.directory = ImarisReadOnlyDirectory(path)
+            self.directory = ImarisReadOnlyDirectory(path, level)
         else:
             self.directory = Directory.open(path)
         self.xum = x_step_size

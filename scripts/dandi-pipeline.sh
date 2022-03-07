@@ -71,6 +71,13 @@ echo "DANDI_ROOT:    $DANDI_ROOT"
 echo "JP2K_ROOT      $JP2K_ROOT"
 echo "--------------------------------"
 #
+# Spirious warning from undeleted shared memory in subprocesses
+#
+PYTHONWARNINGS=ignore
+#
+# Increase the number of simultaneous open files
+#
+ulimit -n 65535
 # Loop over each .dcimg file
 #
 ALL_DCIMGS=$(find $RAW_PATH -wholename "**/*.dcimg")

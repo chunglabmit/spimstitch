@@ -5,7 +5,7 @@ from xml.dom.minidom import parse
 import numpy as np
 
 
-def parse_terastitcher(path: str):
+def parse_terastitcher(path: str, level:int = 1):
     from .stitch import StitchSrcVolume
 
     class ImarisStitchSrcVolume(StitchSrcVolume):
@@ -52,7 +52,8 @@ def parse_terastitcher(path: str):
             y0=y,
             z0=0,
             is_oblique=False,
-            is_ims=True
+            is_ims=True,
+            level=level
         )
     return volumes
 
@@ -62,10 +63,11 @@ class ImarisReadOnlyDirectory:
     A duck type of blockfs Directory, except geared for read-only access.
     """
 
-    def __init__(self, path):
+    def __init__(self, path, level):
         self.path = path
         self.initialized = False
         self.current_channel = 0
+        self.level = level
 
     def check_initialize(self):
         """
@@ -74,8 +76,10 @@ class ImarisReadOnlyDirectory:
         process-specific file handle.
         """
         if not self.initialized:
+            imaris_level = int(np.round(np.log2(self.level)))
+            resolution_level = f"ResolutionLevel {imaris_level}"
             self.h5file = h5py.File(self.path, "r")
-            r0t0 = self.h5file["DataSet"]["ResolutionLevel 0"]["TimePoint 0"]
+            r0t0 = self.h5file["DataSet"][resolution_level]["TimePoint 0"]
             self.channels = [r0t0[k]["Data"] for k in r0t0
                              if k.startswith("Channel")]
             self.initialized = True

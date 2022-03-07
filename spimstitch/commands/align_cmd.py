@@ -10,6 +10,7 @@ import typing
 
 import tifffile
 import tqdm
+from precomputed_tif.blockfs_stack import BlockfsStack
 from scipy import ndimage
 
 from ..stitch import StitchSrcVolume
@@ -42,6 +43,13 @@ def parse_args(args=sys.argv[1:]):
         default=1.28,
         type=float,
         help="Size of one x-stepper step in microns"
+    )
+    parser.add_argument(
+        "--level",
+        default=1,
+        type=int,
+        help="The downsampling level at which to perform the alignment, e.g. "
+             "1, 2, 4, 8, etc."
     )
     parser.add_argument(
         "--is-oblique",
@@ -317,7 +325,8 @@ def main(args=sys.argv[1:]):
         pattern = opts.pattern
     if opts.imaris:
         all_volumes = []
-        for k, v in parse_terastitcher(opts.terastitcher_xml).items():
+        for k, v in parse_terastitcher(opts.terastitcher_xml,
+                                       opts.level).items():
             VOLUMES[k] = v
             all_volumes.append(v)
             v.directory.current_channel = opts.channel - 1
@@ -326,8 +335,10 @@ def main(args=sys.argv[1:]):
             paths = [path.parent for path in
                      sorted(pathlib.Path(opts.input).glob(f"{pattern}/.zgroup"))]
         else:
-            paths = sorted(pathlib.Path(opts.input)
-                       .glob(f"{pattern}/1_1_1/precomputed.blockfs"))
+            paths = sorted(
+                pathlib.Path(opts.input)
+                .glob(f"{pattern}/{opts.level}_{opts.level}_{opts.level}/"
+                      f"{BlockfsStack.DIRECTORY_FILENAME}"))
         if len(paths) == 0:
             print("There are no precomputed.blockfs files in the path, %s" %
                   opts.input)
@@ -360,7 +371,8 @@ def main(args=sys.argv[1:]):
                     z0=z,
                     is_oblique=opts.is_oblique,
                     is_ngff=True,
-                    x0=x, y0=y * y_sign)
+                    x0=x, y0=y * y_sign,
+                    level=opts.level)
             else:
                 zpath = path.parent.parent
                 try:
@@ -507,9 +519,9 @@ def rollup_offsets(overlaps:typing.Dict[DKEY_T, typing.Sequence[typing.Dict]],
 def compute_new_alignment(alignments, ka, kb, rollups, negative_y):
     ny_mult = -1 if negative_y else 1
     aa = alignments[ka]
-    x = aa[0] + (kb[0] - ka[0]) + rollups[ka, kb]["x_off"]
-    y = aa[1] + (kb[1] - ka[1]) * ny_mult + rollups[ka, kb]["y_off"]
-    z = aa[2] + (kb[2] - ka[2]) + rollups[ka, kb]["z_off"]
+    x = aa[0] + (kb[0] - ka[0]) + rollups[ka, kb]["x_off"] * ny_mult
+    y = aa[1] + ((kb[1] - ka[1]) + rollups[ka, kb]["y_off"]) * ny_mult
+    z = aa[2] + (kb[2] - ka[2]) + rollups[ka, kb]["z_off"] * ny_mult
     alignments[kb] = (x, y, z)
 
 
@@ -573,7 +585,7 @@ def make_json_alignment_dict(overlaps:dict, opts):
         z = all_z[0]
         ka = (xa, y, z)
         kb = (xb, y, z)
-        compute_new_alignment(alignments, ka, kb, rollups_x, opts.negative_y)
+        compute_new_alignment(alignments, ka, kb, rollups_x, False)
 
     for ya, yb in zip(all_y[:-1], all_y[1:]):
         x = all_x[0]
@@ -587,7 +599,7 @@ def make_json_alignment_dict(overlaps:dict, opts):
         y = all_y[0]
         ka = (x, y, za)
         kb = (x, y, zb)
-        compute_new_alignment(alignments, ka, kb, rollups_z, opts.negative_y)
+        compute_new_alignment(alignments, ka, kb, rollups_z, False)
     # do the middles
     for ya, yb in zip(all_y[:-1], all_y[1:]):
         for x in all_x:

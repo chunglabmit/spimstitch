@@ -67,10 +67,11 @@ class NGFFReadOnlyDirectory:
     A duck type of blockfs Directory, except geared for read-only access.
     """
 
-    def __init__(self, path):
+    def __init__(self, path, level=1):
         self.store = zarr.NestedDirectoryStore(path)
         self.zgroup = zarr.group(self.store, overwrite=False)
-        self.array:zarr.Array = self.zgroup["0"]
+        ngff_level = int(np.round(np.log(level) / np.log(2)))
+        self.array:zarr.Array = self.zgroup[str(ngff_level)]
         self.array.read_only = True
 
     @property
