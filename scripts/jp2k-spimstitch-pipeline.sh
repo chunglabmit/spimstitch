@@ -173,6 +173,7 @@ if [ $SINGLE_CHANNEL == 0 ]; then
       --sigma 10 \
       --sample-count 100 \
       --window-size 51,51,51 \
+      --report ${ALIGN_FILE%.*}.pdf \
       $ALIGN_EXTRAS
   fi
 #

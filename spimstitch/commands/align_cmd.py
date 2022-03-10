@@ -132,6 +132,10 @@ def parse_args(args=sys.argv[1:]):
         "is in the opposite direction with respect to Y scans",
         action="store_true"
     )
+    parser.add_argument(
+        "--report",
+        help="If present, write a report to this PDF detailing the alignment."
+    )
     return parser.parse_args(args)
 
 KEY_T = typing.Tuple[int, int, int]
@@ -439,6 +443,8 @@ def main(args=sys.argv[1:]):
     json_overlaps = make_json_alignment_dict(overlaps, opts)
     with open(opts.output, "w") as fd:
         json.dump(json_overlaps, fd, indent=2)
+    if opts.report is not None:
+        write_report(opts.report, json_overlaps)
 
 
 
@@ -622,6 +628,56 @@ def make_json_alignment_dict(overlaps:dict, opts):
     json_overlaps["align-z"] = bool(opts.align_xz)
     return json_overlaps
 
+
+def write_report(dest:str, d:dict):
+    """
+    Write a PDF report to the given destination on the alignment
+
+    :param dest: PDF file path
+    :param d: the JSON dictionary
+    """
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.backends.backend_pdf
+    from matplotlib import pyplot
+    pdf = matplotlib.backends.backend_pdf.PdfPages(dest)
+    figure = pyplot.figure(figsize=(6, 1))
+    pyplot.text(0.05, 0.75, "Alignment report", size=24)
+    pyplot.axis("off")
+    pdf.savefig(figure)
+    for key in [k for k in d if k.startswith("[[")]:
+        k1, k2 = json.loads(key)
+        figure = pyplot.figure(figsize=(6, 1))
+        pyplot.text(0.05, 0.50, f"Alignment of {k1} \nand {k2}", size=18)
+        pyplot.axis("off")
+        pdf.savefig(figure)
+        stats = d[key]
+        corrs = [_["corr"] for _ in stats]
+        diffs_x, diffs_y, diffs_z = [[_[axis + "b"] - _[axis + "a"]
+                                      for _ in stats] for axis in "xyz"]
+        x = [_["xa"] for _ in stats]
+        # Box plot of x, y and z
+        figure = pyplot.figure(figsize=(6, 6))
+        pyplot.boxplot([diffs_x, diffs_y, diffs_z], labels="xyz")
+        pyplot.title(f"x-std={np.std(diffs_x):.2f}px, "
+                     f"y-std={np.std(diffs_y):.2f}px, "
+                     f"z-std={np.std(diffs_z):.2f}px")
+        pdf.savefig(figure)
+        # Plot of stage position versus offset
+        for axis, diffs in (("x", diffs_x),
+                            ("y", diffs_y),
+                            ("z", diffs_z)):
+            figure = pyplot.figure(figsize=(6, 6))
+            sm = matplotlib.cm.ScalarMappable()
+            sm.set_array(corrs)
+            colors = sm.to_rgba(corrs)
+            pyplot.scatter(x, diffs, color=colors)
+            pyplot.colorbar(sm)
+            pyplot.gca().set_xlabel("X stage position")
+            pyplot.gca().set_ylabel(f"{axis}-offset (px)")
+            pyplot.title(f"{axis} Offset from expected vs stage position")
+            pdf.savefig(figure)
+    pdf.close()
 
 if __name__=="__main__":
     main()

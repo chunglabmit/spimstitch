@@ -183,6 +183,7 @@ else
       --sigma 10 \
       --sample-count 250 \
       --window-size 51,51,51 \
+      --report ${ALIGN_FILE%.*}.pdf \
       $ALIGN_EXTRAS
   fi
   sidecar_wildcard="$(basename $(dandi-metadata target-file \
