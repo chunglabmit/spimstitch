@@ -46,8 +46,37 @@ def parse_args(args=sys.argv[1:]):
     build_order_dcimg_files(subparsers)
     build_rewrite_transforms(subparsers)
     build_negative_y_parser(subparsers)
+    build_flip_y_parser(subparsers)
+    build_machine_id_parser(subparsers)
     return parser.parse_args(args)
 
+def build_machine_id_parser(subparsers):
+    subparser = subparsers.add_parser(
+        "get-machine-id",
+        description="Read the machine ID out of the metadata file")
+    subparser.set_defaults(func=get_machine_id)
+    subparser.add_argument(
+        "metadata_file",
+        help="Path to the metadata.txt file"
+    )
+
+def build_flip_y_parser(subparsers):
+    subparser = subparsers.add_parser(
+        "get-flip-y",
+        description="Determine whether the given camera needs to have the "
+                    "frame's Y axis flipped.")
+    subparser.set_defaults(func=get_flip_y)
+    subparser.add_argument(
+        "metadata_file",
+        help="Path to the metadata.txt file."
+    )
+    subparser.add_argument(
+        "channel",
+        help="The name of the output channel, e.g. Ex_488_Em_3. This will "
+             "be parsed into numbers and the closest match to 488, 561 or"
+             "642 will be used to determine whether camera 1 (488) or "
+             "camera 2 (561, 642) was used."
+    )
 
 def build_y_voxel_size_parser(subparsers):
     subparser = subparsers.add_parser("get-y-voxel-size")
@@ -245,12 +274,68 @@ def get_y_voxel_size(opts):
 
 def get_negative_y(opts):
     metadata_path = pathlib.Path(opts.metadata_file)
-    lines = [line.strip() for line in open(metadata_path, encoding="latin1")]
-    for field in lines[0].split("\t"):
+    version = get_version(metadata_path)
+    lines = read_metadata(metadata_path)
+    if version > (2, 0):
+        the_line = lines[1]
+    else:
+        the_line = lines[0]
+    for field in the_line.split("\t"):
         if field.startswith("NoOffset"):
             print("negative-y")
             return
     print("positive-y")
+
+
+channels_and_cameras = [(488, 1), (561, 2), (642, 2)]
+
+
+def get_flip_y(opts):
+    metadata_path = pathlib.Path(opts.metadata_file)
+    if get_version(metadata_path) > (2, 0):
+        channel = opts.channel
+        closest = 10000000
+        closest_camera = 1
+        for part in channel.split("_"):
+            try:
+                wavelength = int(part)
+                for target, camera in channels_and_cameras:
+                    score = abs(wavelength - target)
+                    if score < closest:
+                        closest = score
+                        closest_camera = camera
+            except ValueError:
+                pass
+        print("flip-y" if closest_camera == 1 else "do-not-flip-y")
+    else:
+        print("flip-y")
+
+
+def get_machine_id(opts):
+    metadata_path = pathlib.Path(opts.metadata_file)
+    if get_version(metadata_path) > (2, 0):
+        lines = read_metadata(metadata_path)
+        fields = lines.split("\t")
+        print(fields[-2])
+    else:
+        print("oSPIM1")
+
+
+def read_metadata(metadata_path):
+    lines = [line.strip() for line in open(metadata_path, encoding="latin1")]
+    return lines
+
+
+def get_version(metadata_path):
+    lines = read_metadata(metadata_path)
+    fields = lines[0].split("\t")
+    version_field = fields[-1]
+    if version_field.startswith("v"):
+        try:
+            return tuple([int(_) for _ in version_field[1:].split(".")])
+        except ValueError:
+            return (1, 0)
+    return (1, 0)
 
 
 def target_file(opts):

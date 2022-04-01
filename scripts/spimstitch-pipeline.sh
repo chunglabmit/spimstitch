@@ -27,6 +27,12 @@ fi
 if [ -z "$NEGATIVE_Y" ] && [ $(dandi-metadata get-negative-y metadata.txt) == "negative-y" ]; then
   NEGATIVE_Y=1
 fi
+if [ -z "$FLIP_Y_SWITCH"] && [ $(dandi-metadata get-flip-y "$METADATA_FILE") == "flip-y" ];
+then
+  FLIP_Y_SWITCH="--flip-ud"
+else
+  FLIP_Y_SWITCH=""
+fi
 
 if [ -z "$Z_OFFSET" ]; then export Z_OFFSET=1844; fi
 if [ -z "$BACKGROUND" ]; then export BACKGROUND=100; fi
@@ -96,7 +102,7 @@ do
       --n-writers 11 \
       --n-workers 48 \
 	    --rotate-90 3 \
-	    --flip-ud \
+	    $FLIP_Y_SWITCH \
 	    --x-step-size $X_STEP_SIZE \
 	    --y-voxel-size $Y_VOXEL_SIZE \
 	    --input "$dcimg_path" \

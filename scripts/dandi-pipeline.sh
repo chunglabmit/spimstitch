@@ -40,6 +40,13 @@ METADATA_FILE=$(dirname "$RAW_PATH")/metadata.txt
 X_STEP_SIZE=$(dandi-metadata get-x-step-size "$METADATA_FILE")
 Y_VOXEL_SIZE=$(dandi-metadata get-y-voxel-size "$METADATA_FILE")
 NEGATIVE_Y=$(dandi-metadata get-negative-y "$METADATA_FILE")
+if [ $(dandi-metadata get-flip-y "$METADATA_FILE") == "flip-y" ];
+then
+  FLIP_Y_SWITCH="--flip-ud"
+else
+  FLIP_Y_SWITCH=""
+fi
+
 if [ -z "$ILLUM_CORR" ]; then
   ILLUM_CORR=/media/share10/lee/illum/ospim1-2021-03-09.tiff
 fi
@@ -69,6 +76,8 @@ echo "ILLUM_CORR:    $ILLUM_CORR"
 echo "N_WORKERS:     $N_WORKERS"
 echo "DANDI_ROOT:    $DANDI_ROOT"
 echo "JP2K_ROOT      $JP2K_ROOT"
+echo "FLIP_Y_SWITCH" $FLIP_Y_SWITCH
+echo "ALIGN_XZ"      $ALIGN_XZ
 echo "--------------------------------"
 #
 # Spirious warning from undeleted shared memory in subprocesses
@@ -122,7 +131,7 @@ do
     --n-writers 11 \
     --n-workers $N_WORKERS \
     --rotate-90 3 \
-    --flip-ud \
+    $FLIP_Y_SWITCH \
     --input "$jp2k_path"/"img_*.jp2" \
     --output "$volume_path" \
      --destripe-method wavelet --sigma1 128 --sigma2 512 --wavelet db5 --crossover 10 \
@@ -156,7 +165,7 @@ else
     ALIGN_FILE="$RAW_PATH"-align.json
   fi
   if [ ! -f $ALIGN_FILE ]; then
-    if [ ! -d "$ALIGN_XZ" ];
+    if [ -d "$DONT_ALIGN_XZ" ];
     then
       ALIGN_EXTRAS=--align-xz
     fi

@@ -60,6 +60,40 @@ class MyTestCase(unittest.TestCase):
             result = run_dandi_metadata(["get-negative-y", name])
             self.assertEqual(result.strip(), "positive-y")
 
+    def test_not_negative_y_2_1(self):
+        with make_file(METADATA_V21) as name:
+            result = run_dandi_metadata(["get-negative-y", name])
+            self.assertEqual(result.strip(), "negative-y")
+
+    def test_flip_y_legacy(self):
+        with make_file(METADATA_WITH_NEGATIVE_Y) as name:
+            result = run_dandi_metadata(["get-flip-y", name, "Ex_642_Em_3"])
+            self.assertEqual(result.strip(), "flip-y")
+
+    def test_flip_y_488(self):
+        with make_file(METADATA_V21) as name:
+            result = run_dandi_metadata(["get-flip-y", name, "Ex_488_Em_1"])
+            self.assertEqual(result.strip(), "flip-y")
+
+    def test_flip_y_561(self):
+        with make_file(METADATA_V21) as name:
+            result = run_dandi_metadata(["get-flip-y", name, "Ex_561_Em_2"])
+            self.assertEqual(result.strip(), "do-not-flip-y")
+
+    def test_flip_y_642(self):
+        with make_file(METADATA_V21) as name:
+            result = run_dandi_metadata(["get-flip-y", name, "Ex_642_Em_2"])
+            self.assertEqual(result.strip(), "do-not-flip-y")
+
+    def test_flip_y_corners(self):
+        for corner_case, expected in (
+                ((488 + 561) // 2 - 1, "flip-y"),
+                ((488 + 561) // 2 + 1, "do-not-flip-y")):
+            with make_file(METADATA_V21) as name:
+                result = run_dandi_metadata(["get-flip-y", name,
+                                             f"Ex_{corner_case}_Em_2"])
+                self.assertEqual(result.strip(), expected)
+
 
 if __name__ == '__main__':
     unittest.main()
@@ -113,4 +147,15 @@ X	Y	Z	Laser	Side	Exposure
 -91830	056740	569	3	0	2
 -91830	056740	2827	2	0	2
 -91830	056740	569	2	0	2
+"""
+
+METADATA_V21=\
+"""Obj	Res	µm/pix	X/Z Step (µm)	oSPIM3	v2.1
+TL 2x	2048	3.226	2.281		NoOffset02152022
+Power	Left	Right			
+488	20	20			
+561	20	20			
+X	Y	Z	Laser	Side	Exposure
+448910	-53410	3284	1	0	2
+448910	-53410	3284	2	0	2
 """
