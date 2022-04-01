@@ -146,7 +146,7 @@ do
       --n-writers 11 \
       --n-workers $WORKERS \
 	    --rotate-90 3 \
-	    --flip-ud \
+	    $FLIP_Y_SWITCH \
 	    --x-step-size $X_STEP_SIZE \
 	    --y-voxel-size $Y_VOXEL_SIZE \
 	    --input "$jp2k_src"/"img_*.jp2" \
