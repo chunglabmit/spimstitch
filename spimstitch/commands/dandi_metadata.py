@@ -453,16 +453,28 @@ def order_dcimg_files(dcimg_files):
 
 def get_sizes(metadata_path):
     lines = [line.strip() for line in open(metadata_path, encoding="latin1")]
-    fields = lines[1].split("\t")
-    if len(fields) == 4:
-        x_step_size = float(fields[3])
-    else:
-        try:
-            x_step_size = float(fields[4])
-        except ValueError:
-            x_step_size = float(fields[5])
+    if get_version((metadata_path)) < (2, 1):
+        fields = lines[1].split("\t")
+        if len(fields) == 4:
+            x_step_size = float(fields[3])
+        else:
+            try:
+                x_step_size = float(fields[4])
+            except ValueError:
+                x_step_size = float(fields[5])
 
-    y_voxel_size = float(fields[2])
+        y_voxel_size = float(fields[2])
+    else:
+        field_names = lines[0].split("\t")
+        fields = lines[1].split("\t")
+        yv_idx = field_names.index("µm/pix")
+        if yv_idx < 0:
+            yv_idx = 2
+        y_voxel_size = float(fields[yv_idx])
+        xs_idx = field_names.index("X/Z Step (µm)")
+        if xs_idx < 0:
+            xs_idx = 3
+        x_step_size = float(fields[xs_idx])
     return x_step_size, y_voxel_size
 
 

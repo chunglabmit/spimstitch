@@ -45,10 +45,21 @@ class MyTestCase(unittest.TestCase):
             result = run_dandi_metadata(["get-x-step-size", name])
             self.assertEqual(result.strip(), "1.225")
 
+
+    def test_get_x_step_size_v21(self):
+        with make_file(METADATA_V21) as name:
+            result = run_dandi_metadata(["get-x-step-size", name])
+            self.assertEqual(result.strip(), "2.281")
+
     def test_get_y_voxel_size(self):
         with make_file(METADATA_WITHOUT_NEGATIVE_Y) as name:
             result = run_dandi_metadata(["get-y-voxel-size", name])
             self.assertEqual(result.strip(), "1.732")
+
+    def test_get_y_voxel_size_v21(self):
+        with make_file(METADATA_V21) as name:
+            result = run_dandi_metadata(["get-y-voxel-size", name])
+            self.assertEqual(result.strip(), "3.226")
 
     def test_negative_y(self):
         with make_file(METADATA_WITH_NEGATIVE_Y) as name:
