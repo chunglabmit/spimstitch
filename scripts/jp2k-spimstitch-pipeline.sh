@@ -31,6 +31,12 @@ fi
 if [ -z "$NEGATIVE_Y" ] && [ $(dandi-metadata get-negative-y metadata.txt) == "negative-y" ]; then
   NEGATIVE_Y=1
 fi
+if [ $(dandi-metadata get-flip-y "$METADATA_FILE") == "flip-y" ];
+then
+  FLIP_Y_SWITCH="--flip-ud"
+else
+  FLIP_Y_SWITCH=""
+fi
 
 if [ -z "$Z_OFFSET" ]; then export Z_OFFSET=1844; fi
 if [ -z "$BACKGROUND" ]; then export BACKGROUND=100; fi
@@ -47,6 +53,7 @@ echo "    ALIGN_FILE=$ALIGN_FILE"
 echo "    ILLUM_CORR=$ILLUM_CORR"
 echo "    USE_WAVELETS=$USE_WAVELETS"
 echo "    ALIGN_XZ=$ALIGN_XZ"
+echo "    FLIP_Y_SWITCH=$FLIP_Y_SWITCH"
 echo "-----------------------------------"
 echo
 if [ -z "$ILLUM_CORR" ]; then
@@ -58,7 +65,7 @@ if [ -z "$ILLUM_CORR" ]; then
     --n-bins 1024 \
     --values-per-bin 4 \
     --rotate-90 3 \
-    --flip-ud \
+    $FLIP_Y_SWITCH \
     `find $channel -name "*.dcimg"`
 fi
 PYSTRIPE_EXTRA_ARGS="--flat $ILLUM_CORR --dark $BACKGROUND"
