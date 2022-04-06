@@ -25,15 +25,15 @@ import argparse
 import json
 import re
 import pathlib
-import shutil
 import sys
+import zarr
 
 from math import sqrt
 
 from precomputed_tif.client import ArrayReader
 
 MICR_DIR = "micr"
-
+NGFF_VERSION = "0.4"
 
 def parse_args(args=sys.argv[1:]):
     parser = argparse.ArgumentParser()
@@ -48,7 +48,36 @@ def parse_args(args=sys.argv[1:]):
     build_negative_y_parser(subparsers)
     build_flip_y_parser(subparsers)
     build_machine_id_parser(subparsers)
+    build_set_ngff_from_sidecar(subparsers)
     return parser.parse_args(args)
+
+def build_set_ngff_from_sidecar(subparsers):
+    subparser = subparsers.add_parser(
+        "set-ngff-from-sidecar",
+        description="Set the NGFF's transform and axes from the values in "
+                    "the sidecar"
+    )
+    subparser.set_defaults(func=set_ngff_from_sidecar_opts)
+    subparser.add_argument(
+        "--sidecar",
+        help="The path to the sidecar that has the transform set",
+        required=True
+    )
+    subparser.add_argument(
+        "--ngff",
+        help="The NGFF that will have the transform in its metadata set to"
+             "whatever is in the sidecar",
+        required=True
+    )
+    subparser.add_argument(
+        "--z-offset",
+        help="This offset, in microns, will be added to the chunk's z-offset. "
+             "For instance, for a 2mm slab, 10 from the top, this might be "
+             "set to 20000",
+        type=float,
+        default=0.0
+    )
+
 
 def build_machine_id_parser(subparsers):
     subparser = subparsers.add_parser(
@@ -486,7 +515,8 @@ def rewrite_transforms(opts):
     yum = opts.y_voxel_size
     xum = zum = yum / sqrt(2)
     for sidecar_filename in opts.sidecar_files:
-        with open(sidecar_filename) as fd:
+        sidecar_path = pathlib.Path(sidecar_filename)
+        with sidecar_path.open() as fd:
             sidecar = json.load(fd)
         z, y, x = get_chunk_transform_offsets(sidecar)
         x, y, z = [int(offset * um)
@@ -498,8 +528,57 @@ def rewrite_transforms(opts):
             new_x, new_y, new_z = alignments[x, y, z]
             set_chunk_transform_matrix(sidecar, new_x, new_y, new_z,
                                        xum, yum, zum)
-            with open(sidecar_filename, "w") as fd:
+            tmp_name = sidecar_path.parent / (sidecar_path.name + ".tmp")
+            with tmp_name.open("w") as fd:
                 json.dump(sidecar, fd, indent=2)
+            sidecar_path.replace(tmp_name)
+
+
+def set_ngff_from_sidecar_opts(opts):
+    set_ngff_from_sidecar(
+        pathlib.Path(opts.sidecar),
+        pathlib.Path(opts.ngff),
+        opts.z_offset
+    )
+
+
+def set_ngff_from_sidecar(sidecar_path:pathlib.Path,
+                          ngff_path:pathlib.Path,
+                          z_offset:float=0.0):
+    """
+    Set the NGFF transform from its sidecar
+
+    :param sidecar_path: The path to the sidecar file
+    :param ngff_path: The path to the NGFF file
+    :param z_offset: The offset in microns of the slab, if any
+    """
+    with sidecar_path.open() as fd:
+        sidecar = json.load(fd)
+    ctma = sidecar["ChunkTransformMatrixAxis"]
+    ctm = sidecar["ChunkTransformMatrix"]
+    z_idx, y_idx, x_idx = [ctma.index(_) for _ in "ZYX"]
+    xum, yum, zum = [ctm[_][_] for _ in (x_idx, y_idx, z_idx)]
+    xoff, yoff, zoff = [ctm[_][-1] for _ in (x_idx, y_idx, z_idx)]
+    zoff += z_offset
+    ngff_zarr = zarr.group(zarr.NestedDirectoryStore(str(ngff_path)))
+    multiscales = ngff_zarr.attrs["multiscales"]
+    for scale in multiscales:
+        scale["version"] = NGFF_VERSION
+        scale["axes"] = [
+            dict(name="t", type="time", unit="second"),
+            dict(name="c", type="channel"),
+            dict(name="z", type="space", unit="micrometer"),
+            dict(name="y", type="space", unit="micrometer"),
+            dict(name="x", type="space", unit="micrometer")
+        ]
+        for i, dataset in enumerate(scale["datasets"]):
+            power = 2 ** i
+            dataset["coordinateTransformations"] = [
+                dict(type="scale",
+                     scale=[1.0, 1.0, zum * power, yum * power, xum * power]),
+                dict(type="translation", translation=[0, 0, zoff, yoff, xoff])
+            ]
+    ngff_zarr.attrs["multiscales"] = multiscales
 
 
 def main(args=sys.argv[1:]):
