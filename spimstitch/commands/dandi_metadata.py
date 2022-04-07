@@ -579,6 +579,10 @@ def set_ngff_from_sidecar(sidecar_path:pathlib.Path,
                 dict(type="translation", translation=[0, 0, zoff, yoff, xoff])
             ]
     ngff_zarr.attrs["multiscales"] = multiscales
+    # Patch the OME version number too since we upgraded it
+    omero = ngff_zarr.attrs["omero"]
+    omero["version"] = NGFF_VERSION
+    ngff_zarr.attrs["omero"] = omero
 
 
 def main(args=sys.argv[1:]):

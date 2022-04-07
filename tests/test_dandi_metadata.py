@@ -44,6 +44,7 @@ def make_ngff_sidecar(chunk_transform_matrix, n_levels):
             g = zarr.group(zarr.NestedDirectoryStore(str(group_path)),
                            overwrite=True)
             g.attrs["multiscales"] = ngff_metadata
+            g.attrs["omero"] = dict(version=0.2)
             yield pathlib.Path(fd.name), group_path
         finally:
             shutil.rmtree(group_path)
@@ -150,8 +151,9 @@ class MyTestCase(unittest.TestCase):
                 "--ngff", str(ngff_path),
                 "--z-offset", str(z_offset)]
             )
-            multiscales = zarr.group(zarr.NestedDirectoryStore(str(ngff_path)))\
-                .attrs["multiscales"][0]
+            group = zarr.group(zarr.NestedDirectoryStore(str(ngff_path)))
+            multiscales = group.attrs["multiscales"][0]
+            omero = group.attrs["omero"]
         self.assertEqual(multiscales["version"], NGFF_VERSION)
         axes = multiscales["axes"]
         for axis, name, atype, unit in zip(
@@ -173,6 +175,7 @@ class MyTestCase(unittest.TestCase):
             self.assertEqual(cts_translation["type"], "translation")
             self.assertSequenceEqual(cts_translation["translation"],
                                      [0, 0, 4100, 200, 300])
+        self.assertEqual(omero["version"], NGFF_VERSION)
 
 if __name__ == '__main__':
     unittest.main()
