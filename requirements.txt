@@ -4,10 +4,10 @@ scipy
 sklearn
 tifffile
 tqdm
-git+git://github.com/chunglabmit/mp_shared_memory#egg=mp_shared_memory
-git+git://github.com/chunglabmit/blockfs#egg=blockfs
-git+git://github.com/chunglabmit/precomputed-tif#egg=precomputed-tif
-git+git://github.com/chunglabmit/pystripe#egg=pystripe
+git+https://github.com/chunglabmit/mp_shared_memory.git#egg=mp_shared_memory
+git+https://github.com/chunglabmit/blockfs.git#egg=blockfs
+git+https://github.com/chunglabmit/precomputed-tif.git#egg=precomputed-tif
+git+https://github.com/chunglabmit/pystripe.git#egg=pystripe
 setuptools
 zarr
 dcimg
