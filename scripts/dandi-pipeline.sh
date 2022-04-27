@@ -30,6 +30,8 @@ then
   echo "Please define the SUBJECT environment variable"
   exit 1
 fi
+CHANNEL=$(basename "$RAW_PATH")
+
 STAIN=$2
 SAMPLE=$3
 if [ -z "$PSNR" ]; then export PSNR=80; fi
@@ -40,7 +42,7 @@ METADATA_FILE=$(dirname "$RAW_PATH")/metadata.txt
 X_STEP_SIZE=$(dandi-metadata get-x-step-size "$METADATA_FILE")
 Y_VOXEL_SIZE=$(dandi-metadata get-y-voxel-size "$METADATA_FILE")
 NEGATIVE_Y=$(dandi-metadata get-negative-y "$METADATA_FILE")
-if [ $(dandi-metadata get-flip-y "$METADATA_FILE") == "flip-y" ];
+if [ $(dandi-metadata get-flip-y "$METADATA_FILE" "$CHANNEL") == "flip-y" ];
 then
   FLIP_Y_SWITCH="--flip-ud"
 else

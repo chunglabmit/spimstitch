@@ -9,6 +9,7 @@ install_requires = [
         "blockfs",
         "glymur",
         "mp_shared_memory",
+        "matplotlib",
         "numpy",
         "precomputed-tif",
         "scipy",

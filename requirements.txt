@@ -1,6 +1,7 @@
 glymur
 numpy
 scipy
+matplotlib
 sklearn
 tifffile
 tqdm

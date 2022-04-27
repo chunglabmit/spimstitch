@@ -27,7 +27,7 @@ fi
 if [ -z "$NEGATIVE_Y" ] && [ $(dandi-metadata get-negative-y metadata.txt) == "negative-y" ]; then
   NEGATIVE_Y=1
 fi
-if [ -z "$FLIP_Y_SWITCH"] && [ $(dandi-metadata get-flip-y "$METADATA_FILE") == "flip-y" ];
+if [ -z "$FLIP_Y_SWITCH"] && [ $(dandi-metadata get-flip-y "$METADATA_FILE" "$channel") == "flip-y" ];
 then
   FLIP_Y_SWITCH="--flip-ud"
 else
