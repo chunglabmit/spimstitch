@@ -38,7 +38,7 @@ if [ -z "$PSNR" ]; then export PSNR=80; fi
 if [ -z "$TEMPLATE" ]; then
   TEMPLATE=/mnt/beegfs/Lee/dandi/template.json
 fi
-METADATA_FILE=$(dirname "$RAW_PATH")/metadata.txt
+METADATA_FILE="$(dirname "$RAW_PATH")"/metadata.txt
 X_STEP_SIZE=$(dandi-metadata get-x-step-size "$METADATA_FILE")
 Y_VOXEL_SIZE=$(dandi-metadata get-y-voxel-size "$METADATA_FILE")
 NEGATIVE_Y=$(dandi-metadata get-negative-y "$METADATA_FILE")
@@ -125,7 +125,7 @@ do
   #
   # Write the NGFF volume
   #
-  mkdir -p $(dirname "$target_name")
+  mkdir -p "$(dirname "$target_name")"
   volume_path="$target_name".ngff
   sidecar_path="$target_name".json
   transform_path=${target_name::-4}transforms.json
@@ -178,7 +178,7 @@ else
   ngff_wildcard=$(basename $(dandi-metadata target-file \
         --subject $SUBJECT \
         --sample $SAMPLE \
-        --source-path $(dirname "$RAW_PATH") \
+        --source-path "$(dirname "$RAW_PATH")" \
         --stain $STAIN \
         --chunk "*" \
     ))".ngff"
@@ -200,10 +200,10 @@ else
   sidecar_wildcard="$(basename $(dandi-metadata target-file \
     --subject $SUBJECT \
     --sample $SAMPLE \
-    --source-path $(dirname "$RAW_PATH") \
+    --source-path "$(dirname "$RAW_PATH")" \
     --stain $STAIN \
     --chunk "*" ))".json
-  ALL_SIDECAR_FILES=$(find $(dirname "$target_name") -maxdepth 1 -name "$sidecar_wildcard")
+  ALL_SIDECAR_FILES=$(find "$(dirname "$target_name")" -maxdepth 1 -name "$sidecar_wildcard")
   dandi-metadata rewrite-transforms \
       --align-file "$ALIGN_FILE" \
       --y-voxel-size $Y_VOXEL_SIZE \

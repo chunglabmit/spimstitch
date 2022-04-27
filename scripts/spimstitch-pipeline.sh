@@ -95,7 +95,7 @@ do
 	  intermediate_levels=5
 	  destriped_precomputed="$channel"_destriped_precomputed_stitched
 	fi
-	mkdir -p $destriped_precomputed
+	mkdir -p "$destriped_precomputed"
 	#
 	# Convert images from .dcimg format to oblique precomputed
   dcimg2oblique \

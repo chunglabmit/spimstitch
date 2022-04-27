@@ -116,7 +116,7 @@ do
     # Make the directories we will need for X and Y
     #
     jp2k_src="$PWD"/"$channel"_jp2k/"$x"/"$xy"/"$z"
-    mkdir -p $jp2k_src
+    mkdir -p "$jp2k_src"
   else
     z=dcimg
     jp2k_src="$PWD"/"$channel"
@@ -128,7 +128,7 @@ do
 	  intermediate_levels=5
 	  destriped_precomputed="$channel"_destriped_precomputed_stitched
 	fi
-	mkdir -p $destriped_precomputed
+	mkdir -p "$destriped_precomputed"
 	#
 	# Convert images from .dcimg to JPEG2000
 	#
