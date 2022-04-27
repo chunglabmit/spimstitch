@@ -134,8 +134,8 @@ do
 	#
 	if [ $DCIMG2JPEG2000 == 1 ]; then
     dcimg2jp2 \
-      --input $dcimg_path \
-      --output-pattern $jp2k_src/img_%05d.jp2 \
+      --input "$dcimg_path" \
+      --output-pattern "$jp2k_src/img_%05d.jp2" \
       --n-workers $WORKERS \
       --psnr $PSNR
   fi
@@ -172,7 +172,7 @@ if [ $SINGLE_CHANNEL == 0 ]; then
     export ALIGN_FILE=$PWD/"$channel"-align.json
     oblique-align \
       --input $PWD/"$channel"_destriped_precomputed \
-      --output $ALIGN_FILE \
+      --output "$ALIGN_FILE" \
       --voxel-size $Y_VOXEL_SIZE \
       --x-step-size $X_STEP_SIZE \
       --is-oblique \
@@ -180,7 +180,7 @@ if [ $SINGLE_CHANNEL == 0 ]; then
       --sigma 10 \
       --sample-count 100 \
       --window-size 51,51,51 \
-      --report ${ALIGN_FILE%.*}.pdf \
+      --report "${ALIGN_FILE%.*}.pdf" \
       $ALIGN_EXTRAS
   fi
 #
@@ -192,9 +192,9 @@ if [ -n "$NGFF" ]; then
 fi
 
 oblique2stitched \
-    --input $PWD/"$channel"_destriped_precomputed \
-    --output $PWD/"$channel"_destriped_precomputed_stitched \
-    --alignment $ALIGN_FILE \
+    --input "$PWD"/"$channel"_destriped_precomputed \
+    --output "$PWD"/"$channel"_destriped_precomputed_stitched \
+    --alignment "$ALIGN_FILE" \
     --levels 7 \
     --x-step-size "$X_STEP_SIZE" \
     --y-voxel-size "$Y_VOXEL_SIZE" \
