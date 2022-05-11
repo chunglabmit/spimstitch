@@ -41,7 +41,7 @@ fi
 METADATA_FILE="$(dirname "$RAW_PATH")"/metadata.txt
 X_STEP_SIZE=$(dandi-metadata get-x-step-size "$METADATA_FILE")
 Y_VOXEL_SIZE=$(dandi-metadata get-y-voxel-size "$METADATA_FILE")
-if [ -z "NEGATIVE_Y" ]
+if [ -z "$NEGATIVE_Y" ]
 then
   NEGATIVE_Y=$(dandi-metadata get-negative-y "$METADATA_FILE")
 fi
