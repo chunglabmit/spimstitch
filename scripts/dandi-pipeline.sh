@@ -211,4 +211,10 @@ else
       --align-file "$ALIGN_FILE" \
       --y-voxel-size $Y_VOXEL_SIZE \
       $ALL_SIDECAR_FILES
+  for sidecar in $ALL_SIDECAR_FILES
+  do
+    dandi-metadata set-ngff-from-sidecar\
+      --sidecar "$sidecar" \
+      --ngff "${sidecar::-4}ngff"
+  done
 fi
