@@ -531,7 +531,7 @@ def rewrite_transforms(opts):
             tmp_name = sidecar_path.parent / (sidecar_path.name + ".tmp")
             with tmp_name.open("w") as fd:
                 json.dump(sidecar, fd, indent=2)
-            sidecar_path.replace(tmp_name)
+            tmp_name.replace(sidecar_path)
 
 
 def set_ngff_from_sidecar_opts(opts):
