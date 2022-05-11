@@ -41,7 +41,10 @@ fi
 METADATA_FILE="$(dirname "$RAW_PATH")"/metadata.txt
 X_STEP_SIZE=$(dandi-metadata get-x-step-size "$METADATA_FILE")
 Y_VOXEL_SIZE=$(dandi-metadata get-y-voxel-size "$METADATA_FILE")
-NEGATIVE_Y=$(dandi-metadata get-negative-y "$METADATA_FILE")
+if [ -z "NEGATIVE_Y" ]
+then
+  NEGATIVE_Y=$(dandi-metadata get-negative-y "$METADATA_FILE")
+fi
 if [ $(dandi-metadata get-flip-y "$METADATA_FILE" "$CHANNEL") == "flip-y" ];
 then
   FLIP_Y_SWITCH="--flip-ud"
@@ -171,7 +174,7 @@ else
     then
       ALIGN_EXTRAS=--align-xz
     fi
-  if [ -v NEGATIVE_Y ];
+  if [ "$NEGATIVE_Y" = "1" ] || [ "$NEGATIVE_Y" = "negative-y" ];
   then
     export ALIGN_EXTRAS=$ALIGN_EXTRAS" --negative-y"
   fi

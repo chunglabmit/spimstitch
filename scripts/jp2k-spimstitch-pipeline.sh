@@ -165,7 +165,7 @@ if [ $SINGLE_CHANNEL == 0 ]; then
     else
       export ALIGN_EXTRAS="--align-xz"
     fi
-    if [ -v NEGATIVE_Y ];
+    if [ $NEGATIVE_Y = "1" ];
     then
       export ALIGN_EXTRAS=$ALIGN_EXTRAS" --negative-y"
     fi
