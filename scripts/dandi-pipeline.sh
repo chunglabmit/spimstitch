@@ -129,7 +129,7 @@ do
   # Write the NGFF volume
   #
   mkdir -p "$(dirname "$target_name")"
-  volume_path="$target_name".ngff
+  volume_path="$target_name".ome.zarr
   sidecar_path="$target_name".json
   transform_path=${target_name::-4}transforms.json
   dcimg2oblique \
@@ -184,7 +184,7 @@ else
         --source-path "$(dirname "$RAW_PATH")" \
         --stain $STAIN \
         --chunk "*" \
-    ))".ngff"
+    ))".ome.zarr"
     oblique-align \
       --ngff \
       --input "$(dirname "$target_name")" \
