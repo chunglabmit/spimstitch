@@ -3,8 +3,8 @@ import multiprocessing
 import glob
 import glymur
 import os
-
 import numpy as np
+from scipy.ndimage import zoom
 import tifffile
 from blockfs import Directory
 from precomputed_tif.blockfs_stack import BlockfsStack
@@ -71,6 +71,22 @@ def parse_args(args=sys.argv[1:]):
         help="Y voxel size in microns",
         type=float,
         default=3.625
+    )
+    parser.add_argument(
+        "--magnification",
+        help="For a 2 camera setup, the camera with the longer arm will have an image"
+             "whose magnification is less than the camera with the shorter arm. This "
+             "magnification factor should be applied to stacks coming from the camera "
+             "with the larger arm. The default is no magnification.",
+        type=float,
+        default=1.0
+    )
+    parser.add_argument(
+        "--magnification-plane-center",
+        help="The point in the plane to be magnified that corresponds to the center of"
+             "the images coming from the other camera. The format is \"x,y\". The "
+             "default is 1024,1024",
+        default="1024,1024"
     )
     parser.add_argument(
         "--n-workers",
@@ -199,7 +215,20 @@ def do_one_jp2000(path:str) -> np.ndarray:
     return do_one(img)
 
 
+def magnify(img):
+    zoomed = zoom(img, MY_OPTS.magnification)
+    center_x, center_y = [int(int(_) * MY_OPTS.magnification)
+              for _ in MY_OPTS.magnification_plane_center.split(",")]
+    x0 = center_x - img.shape[1] // 2
+    x1 = center_x + img.shape[1] // 2
+    y0 = center_y - img.shape[0] // 2
+    y1 = center_y + img.shape[0] // 2
+    return zoomed[y0:y1, x0:x1]
+
+
 def do_one(img):
+    if MY_OPTS.magnification != 1.0:
+        img = magnify(img)
     img = np.rot90(img, MY_OPTS.rotate_90)
     if MY_OPTS.flip_ud:
         img = np.flipud(img)
