@@ -227,11 +227,11 @@ def magnify(img):
 
 
 def do_one(img):
-    if MY_OPTS.magnification != 1.0:
-        img = magnify(img)
     img = np.rot90(img, MY_OPTS.rotate_90)
     if MY_OPTS.flip_ud:
         img = np.flipud(img)
+    if MY_OPTS.magnification != 1.0:
+        img = magnify(img)
     if MY_OPTS.destripe_method == "lightsheet":
         fimg = correct_lightsheet(
             img.reshape(img.shape[0], img.shape[1], 1),
