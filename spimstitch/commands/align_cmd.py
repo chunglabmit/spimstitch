@@ -359,7 +359,12 @@ def main(args=sys.argv[1:]):
                 # The NGFF files should have matching sidecar json
                 # This file has the putative offset of each stack
                 #
-                sidecar_path = path.parent / (path.stem + ".json")
+                if path.name.endswith(".ngff"):
+                    sidecar_path = path.parent / (path.stem + ".json")
+                elif path.name.endswith(".ome.zarr"):
+                    sidecar_path = path.parent / (path.name[:-9] + ".json")
+                else:
+                    raise ValueError("Path extension is not .ngff or .zarr")
                 if not sidecar_path.exists():
                     raise FileNotFoundError(
                         "%s does not have a matching sidecar file" % str(path))
