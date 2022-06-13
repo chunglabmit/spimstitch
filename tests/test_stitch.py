@@ -45,6 +45,19 @@ class MockVolume:
         self.z0 = z0
         self.z1 = z1
 
+    def rebase(self, x0, y0, z0=None):
+        dx = x0 - self.x0
+        self.x0 += dx
+        self.x1 += dx
+        dy = y0 - self.y0
+        self.y0 += dy
+        self.y1 += dy
+        if z0:
+            dz = z0 - self.z0
+            self.z0 += dz
+            self.z1 += dz
+
+
 @contextlib.contextmanager
 def make_case(vdescs):
     tempdir = tempfile.mkdtemp()

@@ -583,6 +583,7 @@ def set_ngff_from_sidecar(sidecar_path:pathlib.Path,
     omero = ngff_zarr.attrs["omero"]
     omero["version"] = NGFF_VERSION
     ngff_zarr.attrs["omero"] = omero
+    zarr.consolidate_metadata(ngff_path)
 
 
 def main(args=sys.argv[1:]):
@@ -590,5 +591,5 @@ def main(args=sys.argv[1:]):
     opts.func(opts)
 
 
-if __name__=="__main__":
+if __name__ == "__main__":
     main()
