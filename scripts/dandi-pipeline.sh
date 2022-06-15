@@ -216,5 +216,6 @@ else
     dandi-metadata set-ngff-from-sidecar\
       --sidecar "$sidecar" \
       --ngff "${sidecar::-4}ome.zarr"
+    dandi-metadata consolidate-metadata --ngff "${sidecar::-4}ome.zarr"
   done
 fi

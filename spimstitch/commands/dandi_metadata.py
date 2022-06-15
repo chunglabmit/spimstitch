@@ -49,8 +49,21 @@ def parse_args(args=sys.argv[1:]):
     build_flip_y_parser(subparsers)
     build_machine_id_parser(subparsers)
     build_set_ngff_from_sidecar(subparsers)
+    build_consolidate_metadata(subparsers)
     return parser.parse_args(args)
 
+def build_consolidate_metadata(subparsers):
+    subparser = subparsers.add_parser(
+        "consolidate-metadata",
+        description="Consolidate the Zarr metadata in a zarr file"
+    )
+    subparser.set_defaults(func=consolidate_metadata)
+    subparser.add_argument(
+        "--ngff",
+        help="The NGFF file to be consolidated",
+        required=True
+    )
+    
 def build_set_ngff_from_sidecar(subparsers):
     subparser = subparsers.add_parser(
         "set-ngff-from-sidecar",
@@ -583,7 +596,9 @@ def set_ngff_from_sidecar(sidecar_path:pathlib.Path,
     omero = ngff_zarr.attrs["omero"]
     omero["version"] = NGFF_VERSION
     ngff_zarr.attrs["omero"] = omero
-    zarr.consolidate_metadata(ngff_path)
+
+def consolidate_metadata(opts):
+    zarr.consolidate_metadata(opts.ngff)
 
 
 def main(args=sys.argv[1:]):
